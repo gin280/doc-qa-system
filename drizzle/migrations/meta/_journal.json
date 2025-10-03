@@ -8,6 +8,13 @@
       "when": 1759459785226,
       "tag": "0000_chief_mach_iv",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1759474288198,
+      "tag": "0001_narrow_speed",
+      "breakpoints": true
     }
   ]
 }
