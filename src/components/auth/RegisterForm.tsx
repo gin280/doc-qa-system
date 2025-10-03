@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
+import { OAuthButtons } from './OAuthButtons'
 
 // 注册表单验证 Schema
 const registerSchema = z.object({
@@ -161,15 +162,20 @@ export function RegisterForm() {
         >
           {isLoading ? '注册中...' : '注册'}
         </Button>
-
-        {/* 登录链接 */}
-        <p className="text-center text-sm text-gray-600">
-          已有账户？{' '}
-          <a href="/login" className="text-blue-600 hover:underline">
-            立即登录
-          </a>
-        </p>
       </form>
+
+      {/* OAuth 按钮 */}
+      <div className="mt-4">
+        <OAuthButtons />
+      </div>
+
+      {/* 登录链接 */}
+      <p className="text-center text-sm text-gray-600 mt-4">
+        已有账户？{' '}
+        <a href="/login" className="text-blue-600 hover:underline">
+          立即登录
+        </a>
+      </p>
     </Card>
   )
 }

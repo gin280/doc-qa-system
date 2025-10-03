@@ -1,0 +1,184 @@
+schema: 1
+story: '1.5'
+story_title: 'OAuth第三方登录'
+gate: CONCERNS
+status_reason: '核心功能已完全实现并通过测试，但存在 1 个关键安全风险需要在生产部署前解决：OAuth 回调 URL 严格配置'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-01-03T12:00:00Z'
+
+top_issues:
+  - id: 'FEATURE-001'
+    severity: medium
+    finding: '相同邮箱多种登录方式的账户关联策略未实施 - 当前允许相同邮箱通过不同 authProvider 自动关联'
+    suggested_action: '明确产品策略并实施：推荐允许账户自动关联，在 Dashboard 显示用户的所有登录方式，并允许手动解绑'
+  
+  - id: 'SEC-001'
+    severity: high
+    finding: 'OAuth 回调 URL 配置需在生产环境严格限制 - 当前仅在文档中说明，未实施自动化验证'
+    suggested_action: '在生产部署前：1) 在 Google/GitHub OAuth 应用中严格限制回调 URL 白名单 2) 添加 CI/CD 配置验证脚本'
+
+  - id: 'REFACTOR-001'
+    severity: medium
+    finding: '认证配置代码已重构到独立文件以符合 Next.js 路由类型要求'
+    suggested_action: '已完成 - 创建 src/lib/auth.ts 集中管理认证配置，路由文件仅导出 handlers'
+
+waiver:
+  active: false
+
+quality_score: 85
+expires: '2025-01-17T12:00:00Z'
+
+evidence:
+  tests_reviewed: 49
+  tests_passed: 49
+  test_coverage:
+    unit: 7
+    integration: 4
+    total: 11
+  risks_identified: 15
+  risks_critical: 1
+  
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7]
+    ac_gaps: []
+    ac_total: 7
+    coverage_percentage: 100
+
+nfr_validation:
+  _assessed: [security, performance, reliability, maintainability]
+  security:
+    status: CONCERNS
+    notes: 'OAuth 回调 URL 需在生产环境严格配置白名单'
+  performance:
+    status: PASS
+    notes: '构建成功，OAuth 回调逻辑优化良好'
+  reliability:
+    status: PASS
+    notes: '错误处理完善，包含 OAuth 取消授权和失败场景'
+  maintainability:
+    status: PASS
+    notes: '代码重构为独立 auth.ts 文件，结构清晰，易于维护'
+
+code_quality:
+  build_status: PASS
+  lint_status: PASS
+  type_errors: 0
+  refactoring_completed:
+    - '将 NextAuth 配置从路由文件提取到 src/lib/auth.ts'
+    - '修复 Next.js Route 类型错误'
+    - '优化代码组织结构'
+
+test_design:
+  scenarios_total: 28
+  by_level:
+    unit: 8
+    integration: 14
+    e2e: 6
+  by_priority:
+    p0: 12
+    p1: 10
+    p2: 6
+  coverage_gaps: []
+
+risk_summary:
+  totals:
+    critical: 1
+    high: 4
+    medium: 6
+    low: 4
+  highest:
+    id: SEC-001
+    score: 6
+    title: 'OAuth 回调 URL 劫持风险'
+  recommendations:
+    must_fix:
+      - '配置生产环境 OAuth 回调 URL 白名单（SEC-001）'
+    monitor:
+      - 'OAuth 回调失败率（目标 < 1%）'
+      - 'OAuth 登录成功率（目标 > 90%）'
+      - 'OAuth 流程响应时间（P95 < 500ms）'
+
+recommendations:
+  immediate:
+    - action: '配置生产环境 OAuth 应用回调 URL 白名单'
+      priority: 'P0'
+      refs: ['Google Cloud Console', 'GitHub Developer Settings']
+    - action: '明确账户关联产品策略（推荐：允许自动关联）'
+      priority: 'P1'
+      refs: ['src/lib/auth.ts signIn callback', 'Dashboard 账户设置']
+    - action: '创建 OAuth 配置验证脚本'
+      priority: 'P1'
+      refs: ['scripts/verify-oauth-config.ts']
+  
+  future:
+    - action: '实现 OAuth Provider 健康检查和降级策略'
+      priority: 'P2'
+      refs: ['src/components/auth/OAuthButtons.tsx']
+    - action: '添加 Sentry 监控 OAuth 流程'
+      priority: 'P2'
+      refs: ['monitoring setup']
+    - action: '考虑将 OAuth 头像下载到 Supabase Storage'
+      priority: 'P3'
+      refs: ['avatar storage optimization']
+
+deployment_readiness:
+  can_deploy: false
+  blockers:
+    - 'SEC-001: 生产环境 OAuth 回调 URL 未配置'
+  recommendations:
+    - 'FEATURE-001: 建议在 MVP 后添加账户关联管理功能'
+  prerequisites:
+    - '配置真实的 Google OAuth Client ID/Secret'
+    - '配置真实的 GitHub OAuth Client ID/Secret'
+    - '在 Vercel 设置 NEXTAUTH_URL 和 NEXTAUTH_SECRET'
+    - '配置 OAuth 应用回调 URL 指向生产域名'
+
+files_reviewed:
+  - 'src/lib/auth.ts (新建)'
+  - 'src/app/api/auth/[...nextauth]/route.ts (重构)'
+  - 'src/components/auth/OAuthButtons.tsx'
+  - 'src/app/(auth)/login/page.tsx'
+  - 'src/app/dashboard/page.tsx'
+  - 'src/components/ui/avatar.tsx'
+  - 'tests/unit/api/oauth.test.ts'
+  - 'tests/integration/oauth-flow.test.ts'
+
+files_modified_during_review:
+  - path: 'src/lib/auth.ts'
+    change: '创建独立认证配置文件'
+    reason: '解决 Next.js Route 类型错误，改善代码组织'
+  - path: 'src/app/api/auth/[...nextauth]/route.ts'
+    change: '简化为仅导出 handlers'
+    reason: 'Next.js 路由文件不允许导出非标准字段'
+  - path: 'src/app/dashboard/page.tsx'
+    change: '更新 auth import 路径'
+    reason: '适配新的认证文件结构'
+
+notes: |
+  OAuth 第三方登录功能核心实现完整且质量良好：
+  
+  ✅ **完成的工作**:
+  - NextAuth Google 和 GitHub providers 配置正确
+  - OAuth 用户自动创建和头像同步逻辑完善
+  - UI 组件（OAuthButtons）设计美观且交互流畅
+  - 错误处理全面（取消授权、失败场景等）
+  - 测试覆盖充分（11 个新测试，100% 通过）
+  - 代码质量高（构建成功、lint 通过、类型安全）
+  
+  ⚠️ **关键风险**:
+  1. SEC-001 (High): OAuth 回调 URL 需在生产环境严格配置
+  
+  📋 **生产部署前必须完成**:
+  1. 在 Google Cloud Console 配置回调 URL 白名单（仅生产域名）
+  3. 在 GitHub OAuth App 配置回调 URL 白名单（仅生产域名）
+  4. 在 Vercel 配置所有必需的环境变量
+  5. 手动测试完整 OAuth 流程（使用真实 Google/GitHub 账号）
+  
+  💡 **建议**:
+  - 当前实现已允许相同邮箱自动关联（符合用户预期）
+  - 建议在 MVP 后添加账户设置页面（显示和管理多个登录方式）
+  - 实施 OAuth 流程监控（Sentry + 自定义 metrics）
+  - 定期审计 OAuth 配置（每季度一次）
+  
+  **整体评估**: 功能实现优秀，需解决 1 个关键安全配置即可部署到生产环境。
+
