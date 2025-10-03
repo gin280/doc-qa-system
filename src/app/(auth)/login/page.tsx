@@ -15,12 +15,12 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
   const oauthError = searchParams.error;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
       <Card className="w-full max-w-md shadow-lg">
         <CardContent className="pt-6 space-y-4">
           {/* OAuth 错误提示 */}
           {oauthError && (
-            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+            <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-lg">
               <p className="text-sm font-medium">登录失败</p>
               <p className="text-sm mt-1">
                 {oauthError === 'OAuthCallback' && 'OAuth 登录失败，请稍后重试或使用邮箱登录'}

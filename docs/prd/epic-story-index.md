@@ -4,14 +4,14 @@
 
 **项目周期**: 8-10周  
 **总Epic数**: 3个  
-**总Story数**: 17个  
+**总Story数**: 19个  
 **状态**: MVP开发阶段
 
 ---
 
 ## 快速导航
 
-- [Epic 1: 基础设施与用户认证](#epic-1-基础设施与用户认证) (6 Stories, 2-3周)
+- [Epic 1: 基础设施与用户认证](#epic-1-基础设施与用户认证) (8 Stories, 3-4周)
 - [Epic 2: 文档管理与解析](#epic-2-文档管理与解析) (5 Stories, 3-4周)
 - [Epic 3: 智能问答与引用系统](#epic-3-智能问答与引用系统) (6 Stories, 3-4周)
 
@@ -29,12 +29,14 @@
 
 | Story ID | 标题 | 优先级 | 工时 | 状态 | 文档 |
 |----------|------|--------|------|------|------|
-| 1.1 | 项目脚手架搭建 | P0 | 2天 | Draft | [Story 1.1](../stories/1.1-project-scaffolding.md) |
-| 1.2 | 数据库设计与初始化 | P0 | 2天 | Draft | [Story 1.2](../stories/1.2-database-design.md) |
-| 1.3 | 用户注册功能 | P0 | 2天 | Draft | [Story 1.3](../stories/1.3-user-registration.md) |
-| 1.4 | 用户登录功能 | P0 | 2天 | Draft | 见story-template.md |
-| 1.5 | OAuth第三方登录 | P1 | 2天 | Draft | 见story-template.md |
-| 1.6 | 用户账户管理页面 | P1 | 3天 | Draft | 见story-template.md |
+| 1.1 | 项目脚手架搭建 | P0 | 2天 | Done | [Story 1.1](../stories/1.1-project-scaffolding.md) |
+| 1.2 | 数据库设计与初始化 | P0 | 2天 | Done | [Story 1.2](../stories/1.2-database-design.md) |
+| 1.3 | 用户注册功能 | P0 | 2天 | Done | [Story 1.3](../stories/1.3-user-registration.md) |
+| 1.4 | 用户登录功能 | P0 | 2天 | Done | [Story 1.4](../stories/1.4-user-login.md) |
+| 1.5 | OAuth第三方登录 | P1 | 2天 | In Progress | [Story 1.5](../stories/1.5-oauth-third-party-login.md) |
+| 1.6 | 用户账户管理页面 | P1 | 3天 | Draft | [Story 1.6](../stories/1.6-user-account-management.md) |
+| **1.7** | **Landing Page 与导航实现** | **P0** | **1天** | **Draft** | **[Story 1.7](../stories/1.7-landing-page.md)** |
+| **1.8** | **全局 UI/UX 增强优化** | **P1** | **2-3天** | **Draft** | **[Story 1.8](../stories/1.8-ui-ux-enhancement.md)** |
 
 **关键里程碑**:
 - ✅ 项目基础架构完成
@@ -196,10 +198,13 @@ graph LR
 ### Story文档
 - 详细Story文档: `docs/stories/`
 - Story模板参考: `docs/stories/story-template.md`
+- **UI系统集成指南（Epic 2/3必读）**: `docs/stories/ui-system-integration-guide.md`
 
 ---
 
 ## 开发规范
+
+### 通用规范
 
 每个Story开发必须包含:
 1. ✅ **功能实现**: 满足所有验收标准
@@ -207,6 +212,18 @@ graph LR
 3. ✅ **集成测试**: API端到端测试
 4. ✅ **代码审查**: 至少1人review
 5. ✅ **文档更新**: 更新相关技术文档
+
+### UI系统规范（2025-01-03新增）
+
+**适用于 Epic 2、Epic 3 及所有后续开发**：
+
+6. ✅ **主题系统合规**: 所有颜色使用语义化类名，禁止硬编码
+7. ✅ **暗色模式测试**: 在亮色和暗色模式下均测试通过
+8. ✅ **性能约束**: 遵循 Story 1.8 的性能要求（动画≥60fps，打包<50KB增量）
+9. ✅ **可访问性**: 颜色对比度≥4.5:1，支持键盘导航
+10. ✅ **代码检查**: 运行 `grep -r "bg-blue-\|text-gray-" src/` 无硬编码颜色
+
+**详细规范**: 参见 `docs/stories/ui-system-integration-guide.md`
 
 ---
 

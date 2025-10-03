@@ -2,6 +2,8 @@ import { auth, signOut } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Logo } from '@/components/ui/logo';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { db } from '@/lib/db';
 import { users } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
@@ -27,9 +29,15 @@ export default async function DashboardPage() {
   const userInitial = user?.name?.charAt(0).toUpperCase() || 'U';
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-background p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg shadow p-6">
+        {/* Logo和主题切换 */}
+        <div className="flex justify-between items-center mb-6">
+          <Logo size="sm" />
+          <ThemeToggle />
+        </div>
+
+        <div className="bg-card rounded-lg shadow p-6">
           {/* 顶部导航栏 */}
           <div className="flex justify-between items-center mb-6 pb-4 border-b">
             <div className="flex items-center gap-4">
@@ -39,7 +47,7 @@ export default async function DashboardPage() {
                   src={user?.avatarUrl || undefined} 
                   alt={user?.name || '用户头像'} 
                 />
-                <AvatarFallback className="bg-blue-500 text-white text-lg">
+                <AvatarFallback className="bg-primary text-primary-foreground text-lg">
                   {userInitial}
                 </AvatarFallback>
               </Avatar>
@@ -47,7 +55,7 @@ export default async function DashboardPage() {
               {/* 用户信息 */}
               <div>
                 <h1 className="text-2xl font-bold">欢迎回来, {user?.name}!</h1>
-                <p className="text-sm text-gray-500">{user?.email}</p>
+                <p className="text-sm text-muted-foreground">{user?.email}</p>
               </div>
             </div>
             
@@ -66,39 +74,39 @@ export default async function DashboardPage() {
 
           {/* 主要内容区域 */}
           <div className="space-y-4">
-            <p className="text-gray-600">
+            <p className="text-muted-foreground">
               您已成功登录到智能文档问答系统
             </p>
             
             {/* 用户详细信息卡片 */}
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm font-semibold text-gray-700 mb-3">
+            <div className="mt-4 p-4 bg-primary/10 rounded-lg">
+              <p className="text-sm font-semibold text-foreground mb-3">
                 账户信息
               </p>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600 w-20">用户 ID:</span>
-                  <span className="text-sm text-gray-800 font-mono">{user?.id}</span>
+                  <span className="text-sm text-muted-foreground w-20">用户 ID:</span>
+                  <span className="text-sm text-foreground font-mono">{user?.id}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600 w-20">邮箱:</span>
-                  <span className="text-sm text-gray-800">{user?.email}</span>
+                  <span className="text-sm text-muted-foreground w-20">邮箱:</span>
+                  <span className="text-sm text-foreground">{user?.email}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600 w-20">用户名:</span>
-                  <span className="text-sm text-gray-800">{user?.name}</span>
+                  <span className="text-sm text-muted-foreground w-20">用户名:</span>
+                  <span className="text-sm text-foreground">{user?.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600 w-20">认证方式:</span>
-                  <span className="text-sm text-gray-800">
+                  <span className="text-sm text-muted-foreground w-20">认证方式:</span>
+                  <span className="text-sm text-foreground">
                     {user?.authProvider === 'GOOGLE' && '🔵 Google'}
                     {user?.authProvider === 'GITHUB' && '⚫ GitHub'}
                     {user?.authProvider === 'EMAIL' && '📧 邮箱密码'}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600 w-20">账户状态:</span>
-                  <span className="text-sm text-green-600 font-medium">
+                  <span className="text-sm text-muted-foreground w-20">账户状态:</span>
+                  <span className="text-sm text-green-600 dark:text-green-400 font-medium">
                     {user?.status === 'active' ? '✓ 正常' : user?.status}
                   </span>
                 </div>
@@ -107,8 +115,8 @@ export default async function DashboardPage() {
 
             {/* OAuth 用户提示 */}
             {user?.authProvider !== 'EMAIL' && (
-              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-sm text-green-800">
+              <div className="mt-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                <p className="text-sm text-green-800 dark:text-green-200">
                   ✓ 您正在使用 {user?.authProvider === 'GOOGLE' ? 'Google' : 'GitHub'} 账号登录，
                   头像已自动同步
                 </p>

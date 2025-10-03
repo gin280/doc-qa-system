@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
+import { Logo } from '@/components/ui/logo'
 import { OAuthButtons } from './OAuthButtons'
 
 // 注册表单验证 Schema
@@ -73,9 +74,14 @@ export function RegisterForm() {
 
   return (
     <Card className="w-full max-w-md p-8">
+      {/* Logo */}
+      <div className="flex justify-center mb-6">
+        <Logo size="md" />
+      </div>
+      
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-center">注册账户</h2>
-        <p className="text-center text-gray-600 mt-2">创建您的文档问答账户</p>
+        <p className="text-center text-muted-foreground mt-2">创建您的文档问答账户</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -92,7 +98,7 @@ export function RegisterForm() {
             disabled={isLoading}
           />
           {errors.name && (
-            <p className="text-red-500 text-sm mt-1">{errors.name.message}</p>
+            <p className="text-destructive text-sm mt-1 animate-in fade-in slide-in-from-top-1 duration-200">{errors.name.message}</p>
           )}
         </div>
 
@@ -109,7 +115,7 @@ export function RegisterForm() {
             disabled={isLoading}
           />
           {errors.email && (
-            <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+            <p className="text-destructive text-sm mt-1 animate-in fade-in slide-in-from-top-1 duration-200">{errors.email.message}</p>
           )}
         </div>
 
@@ -126,7 +132,7 @@ export function RegisterForm() {
             disabled={isLoading}
           />
           {errors.password && (
-            <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
+            <p className="text-destructive text-sm mt-1 animate-in fade-in slide-in-from-top-1 duration-200">{errors.password.message}</p>
           )}
         </div>
 
@@ -143,13 +149,13 @@ export function RegisterForm() {
             disabled={isLoading}
           />
           {errors.confirmPassword && (
-            <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>
+            <p className="text-destructive text-sm mt-1 animate-in fade-in slide-in-from-top-1 duration-200">{errors.confirmPassword.message}</p>
           )}
         </div>
 
         {/* 错误提示 */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
+          <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded animate-in fade-in slide-in-from-top-2 duration-300">
             {error}
           </div>
         )}
@@ -170,9 +176,9 @@ export function RegisterForm() {
       </div>
 
       {/* 登录链接 */}
-      <p className="text-center text-sm text-gray-600 mt-4">
+      <p className="text-center text-sm text-muted-foreground mt-4">
         已有账户？{' '}
-        <a href="/login" className="text-blue-600 hover:underline">
+        <a href="/login" className="text-primary link-underline">
           立即登录
         </a>
       </p>

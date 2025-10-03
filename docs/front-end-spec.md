@@ -737,12 +737,13 @@ graph TD
 - 修改密码弹出模态框，需验证旧密码
 - 删除账户需二次确认："请输入您的邮箱以确认删除"
 - 升级按钮跳转到定价页面（Phase 2）
-- **主题切换**：
-  - Header右上角显示主题切换按钮（月亮/太阳图标）
-  - 点击打开下拉菜单，显示所有主题选项
-  - 设置页面提供完整的主题配置界面
-  - 主题切换有0.3秒平滑过渡动画
-  - 用户选择自动保存到LocalStorage
+- **主题切换**（基于 Story 1.8 实施）：
+  - Header右上角显示 `ThemeToggle` 组件（月亮/太阳图标）
+  - 点击打开下拉菜单，显示三个选项：Light / Dark / System
+  - 设置页面提供完整的主题配置界面（单选按钮组）
+  - 主题切换有 200ms 平滑过渡动画（由 CSS Variables 实现）
+  - 用户选择自动保存到 `localStorage`（由 `next-themes` 管理）
+  - 支持 `prefers-color-scheme` 媒体查询（System 模式）
 
 **Design File Reference**: `figma.com/file/xxx/settings`
 
@@ -890,6 +891,44 @@ graph TD
 ---
 
 ### Core Components
+
+#### Component 0: Theme System Components (Story 1.8)
+
+**新增主题系统组件** - 基于 Story 1.8 实施
+
+**ThemeProvider**
+- **Purpose**: 包裹整个应用，提供主题上下文
+- **Location**: `src/components/providers/ThemeProvider.tsx`
+- **Props**:
+  - `attribute`: 'class' (使用 class 切换主题)
+  - `defaultTheme`: 'system' | 'light' | 'dark'
+  - `enableSystem`: boolean (是否支持系统主题)
+  - `disableTransitionOnChange`: boolean (禁用切换时的过渡)
+- **Usage**:
+  ```tsx
+  // src/app/layout.tsx
+  <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <SessionProvider>{children}</SessionProvider>
+  </ThemeProvider>
+  ```
+
+**ThemeToggle**
+- **Purpose**: 主题切换器组件
+- **Location**: `src/components/ui/theme-toggle.tsx`
+- **Variants**:
+  - **Dropdown Menu（桌面端）**: Sun/Moon 图标 + 下拉菜单（Light/Dark/System）
+  - **Toggle Button（移动端）**: 简化为 Light ⇄ Dark 切换
+- **Placement**: Header 右上角，用户头像左侧
+- **Keyboard Support**: Enter/Space 打开菜单，Esc 关闭
+- **Usage**:
+  ```tsx
+  <Header>
+    <Logo />
+    <Navigation />
+    <ThemeToggle />  {/* 主题切换器 */}
+    <UserMenu />
+  </Header>
+  ```
 
 #### Component 1: Button
 
@@ -1107,42 +1146,83 @@ graph TD
 
 ### Color Palette
 
-**基础色板**（默认蓝色主题）
+**⚠️ 重要更新（2025-01-03）**: 本项目已迁移到 **OKLCH 色彩空间** + **CSS Variables** 主题系统，以支持暗色模式和更好的色彩一致性。
 
-| Color Type | Hex Code | Tailwind Class | Usage |
-|------------|----------|----------------|-------|
-| **Primary** | #2563EB | `bg-blue-600` | 主按钮、链接、选中状态、Logo |
-| **Primary Hover** | #1D4ED8 | `bg-blue-700` | 主按钮hover状态 |
-| **Secondary** | #7C3AED | `bg-purple-600` | 辅助色、点缀、AI相关元素 |
-| **Success** | #10B981 | `bg-green-500` | 成功提示、进度完成、正向反馈 |
-| **Warning** | #F59E0B | `bg-amber-500` | 警告提示、接近配额限制 |
-| **Error** | #EF4444 | `bg-red-500` | 错误提示、危险操作、验证失败 |
-| **Neutral-900** | #111827 | `text-gray-900` | 主要文字（深色模式下为白色） |
-| **Neutral-600** | #4B5563 | `text-gray-600` | 次要文字 |
-| **Neutral-400** | #9CA3AF | `text-gray-400` | 占位文字、禁用状态 |
-| **Neutral-100** | #F3F4F6 | `bg-gray-100` | 背景色、卡片背景 |
-| **Neutral-50** | #F9FAFB | `bg-gray-50` | 页面背景 |
+#### OKLCH 色彩系统（基于 Story 1.8）
 
-**主题切换系统**
+**为什么使用 OKLCH？**
+- ✅ 更好的感知均匀性（颜色看起来更和谐）
+- ✅ 更容易调整亮度而不改变色相
+- ✅ 暗色模式支持更优秀
+- ✅ 未来浏览器的标准方向
 
-系统支持以下主题组合：
+**主要颜色定义（CSS Variables）**
 
-| 主题名称 | Primary色 | 适用场景 |
-|---------|----------|---------|
-| **默认蓝色** | #2563EB | 专业、可信赖（默认） |
-| **优雅紫色** | #7C3AED | 创意、现代感 |
-| **清新绿色** | #10B981 | 环保、自然 |
-| **活力橙色** | #F59E0B | 热情、活力 |
+| Color Token | OKLCH Value | Tailwind Class | Usage |
+|-------------|-------------|----------------|-------|
+| `--primary` | `oklch(0.6171 0.1375 39.0427)` | `bg-primary` | 主按钮、链接、选中状态、Logo |
+| `--primary-foreground` | `oklch(1.0000 0 0)` | `text-primary-foreground` | 主色按钮的文字颜色 |
+| `--secondary` | `oklch(0.9245 0.0138 92.9892)` | `bg-secondary` | 辅助色、次要按钮 |
+| `--secondary-foreground` | `oklch(0.3438 0.0269 95.7226)` | `text-secondary-foreground` | 次要按钮文字 |
+| `--destructive` | `oklch(0.5834 0.2078 25.3313)` | `bg-destructive` | 错误提示、危险操作 |
+| `--destructive-foreground` | `oklch(1.0000 0 0)` | `text-destructive-foreground` | 危险按钮文字 |
+| `--muted` | `oklch(0.9341 0.0153 90.2390)` | `bg-muted` | 浅色背景、禁用状态 |
+| `--muted-foreground` | `oklch(0.6059 0.0075 97.4233)` | `text-muted-foreground` | 次要文字、占位符 |
+| `--accent` | `oklch(0.9341 0.0153 90.2390)` | `bg-accent` | 悬停背景、高亮 |
+| `--accent-foreground` | `oklch(0.3438 0.0269 95.7226)` | `text-accent-foreground` | 高亮文字 |
+| `--border` | `oklch(0.8847 0.0069 97.3627)` | `border-border` | 边框颜色 |
+| `--ring` | `oklch(0.6171 0.1375 39.0427)` | `ring-ring` | 焦点环颜色 |
 
-每个主题都支持**明亮模式**和**暗色模式**，通过CSS变量动态切换。
+**语义化背景和文字**
 
-**暗色模式映射**:
-- Primary: 保持#2563EB（略微提亮）
-- Neutral-900 → #F9FAFB（白色文字）
-- Neutral-50 → #111827（深色背景）
-- 其他颜色保持一致，调整透明度
+| Color Token | OKLCH Value (Light) | Tailwind Class | Usage |
+|-------------|---------------------|----------------|-------|
+| `--background` | `oklch(0.9818 0.0054 95.0986)` | `bg-background` | 页面背景 |
+| `--foreground` | `oklch(0.3438 0.0269 95.7226)` | `text-foreground` | 主要文字 |
+| `--card` | `oklch(1.0000 0 0)` | `bg-card` | 卡片背景 |
+| `--card-foreground` | `oklch(0.3438 0.0269 95.7226)` | `text-card-foreground` | 卡片文字 |
+| `--popover` | `oklch(1.0000 0 0)` | `bg-popover` | 弹出层背景 |
+| `--popover-foreground` | `oklch(0.3438 0.0269 95.7226)` | `text-popover-foreground` | 弹出层文字 |
 
-**主题生成工具**: 使用 [tweakcn.com/editor/theme](https://tweakcn.com/editor/theme) 可视化编辑和预览所有主题变体
+#### 暗色模式颜色定义
+
+| Color Token | OKLCH Value (Dark) | 说明 |
+|-------------|-------------------|------|
+| `--background` | `oklch(0.2679 0.0036 106.6427)` | 深色背景 |
+| `--foreground` | `oklch(0.8074 0.0142 93.0137)` | 浅色文字 |
+| `--primary` | `oklch(0.6724 0.1308 38.7559)` | 主色（略微提亮） |
+| `--muted` | `oklch(0.2213 0.0038 106.7070)` | 暗色背景 |
+| `--border` | `oklch(0.3618 0.0101 106.8928)` | 深色边框 |
+
+**暗色模式映射逻辑**：
+- 背景色变深：`oklch(0.98...) → oklch(0.26...)`
+- 文字色变浅：`oklch(0.34...) → oklch(0.80...)`
+- 主色略微提亮：保持品牌识别的同时提升可读性
+- 其他语义色（如 `--card`, `--popover`）自动继承对应的背景/前景色
+
+#### 主题切换系统
+
+**实现方式**：
+- 使用 `next-themes` 库管理主题状态
+- CSS Variables 定义在 `src/app/globals.css`
+- Tailwind 配置映射 CSS Variables
+- 用户选择持久化到 `localStorage`
+
+**支持的主题模式**：
+- 🌞 **Light (明亮模式)**：默认主题
+- 🌙 **Dark (暗色模式)**：深色背景，护眼友好
+- 💻 **System (跟随系统)**：自动根据操作系统设置切换
+
+**主题定制工具**: 使用 [tweakcn.com/editor/theme](https://tweakcn.com/editor/theme) 可视化编辑和预览所有主题变体
+
+**主题切换平滑过渡**：
+```css
+* {
+  transition-property: color, background-color, border-color;
+  transition-duration: 200ms;
+  transition-timing-function: ease-in-out;
+}
+```
 
 ---
 
@@ -1683,9 +1763,106 @@ graph TD
 
 ---
 
+## Color Usage Guidelines (基于 Story 1.8)
+
+### 🎨 正确使用语义化颜色
+
+**❌ 禁止使用硬编码颜色**：
+```tsx
+// ❌ 错误示例
+<div className="bg-blue-500 text-white">主按钮</div>
+<p className="text-gray-600">次要文字</p>
+<div className="bg-red-50 border-red-200">错误提示</div>
+```
+
+**✅ 必须使用语义化类名**：
+```tsx
+// ✅ 正确示例
+<Button className="bg-primary text-primary-foreground">主按钮</Button>
+<p className="text-muted-foreground">次要文字</p>
+<Alert className="bg-destructive/10 border-destructive/30 text-destructive">
+  错误提示
+</Alert>
+```
+
+### 📋 颜色映射速查表
+
+**开发必读** - 从旧的 Tailwind 类名迁移到新的语义化类名：
+
+| 使用场景 | ❌ 旧类名（Hex） | ✅ 新类名（OKLCH） | 说明 |
+|---------|-----------------|-------------------|------|
+| **主要文字** | `text-gray-900` | `text-foreground` | 标题、正文 |
+| **次要文字** | `text-gray-600` | `text-muted-foreground` | 说明、时间戳 |
+| **占位文字** | `text-gray-400` | `text-muted-foreground/50` | 输入框占位符 |
+| **主色按钮** | `bg-blue-600` | `bg-primary text-primary-foreground` | CTA按钮 |
+| **次要按钮** | `bg-gray-100` | `bg-secondary text-secondary-foreground` | 普通按钮 |
+| **危险按钮** | `bg-red-500` | `bg-destructive text-destructive-foreground` | 删除、清空 |
+| **链接文字** | `text-blue-600` | `text-primary` | 可点击链接 |
+| **成功提示** | `text-green-600` | `text-green-600 dark:text-green-400` | Toast成功 |
+| **错误提示** | `text-red-600` | `text-destructive` | 表单错误 |
+| **卡片背景** | `bg-white` | `bg-card` | Card组件 |
+| **页面背景** | `bg-gray-50` | `bg-background` | Body背景 |
+| **边框颜色** | `border-gray-200` | `border-border` | 分割线 |
+| **悬停背景** | `bg-gray-100` | `bg-accent` | Hover状态 |
+| **浅色背景** | `bg-gray-50` | `bg-muted` | 禁用状态 |
+
+### 🌗 暗色模式适配规则
+
+**自动适配（推荐）**：
+```tsx
+// ✅ 使用语义化类名，自动支持暗色模式
+<div className="bg-card text-card-foreground">
+  <h3 className="text-foreground">标题</h3>
+  <p className="text-muted-foreground">描述</p>
+</div>
+```
+
+**手动适配（特殊情况）**：
+```tsx
+// ✅ 某些特殊颜色需要明确指定暗色模式
+<div className="bg-green-50 dark:bg-green-950/20 
+                border-green-200 dark:border-green-800">
+  成功提示
+</div>
+```
+
+### ⚠️ 代码审查检查点
+
+在 Code Review 时，**必须检查以下内容**：
+
+1. **禁止硬编码颜色**：
+   ```bash
+   # 运行这些命令检查
+   grep -r "bg-blue-" src/
+   grep -r "bg-red-" src/
+   grep -r "text-gray-" src/
+   grep -r "border-gray-" src/
+   ```
+
+2. **验证暗色模式**：
+   - 在浏览器中切换到暗色模式
+   - 检查所有页面的文字可读性
+   - 确保对比度符合 WCAG AA 标准（4.5:1）
+
+3. **测试主题切换**：
+   - Light → Dark → System 切换流畅
+   - 无闪烁或布局抖动
+   - 颜色过渡动画正常（200ms）
+
+### 📚 开发资源
+
+- **主题编辑器**: [tweakcn.com/editor/theme](https://tweakcn.com/editor/theme)
+- **对比度检查**: Chrome DevTools → Accessibility → Contrast
+- **Story 1.8 完整实施指南**: `docs/stories/1.8-ui-ux-enhancement.md`
+- **globals.css 定义**: `src/app/globals.css`
+- **Tailwind 配置**: `tailwind.config.ts`
+
+---
+
 ## Document Metadata
 
 **UI/UX规格完成度**：✅ 100%
+**Color System 版本**: v2.0 (OKLCH + CSS Variables) - 更新于 2025-01-03
 
 **包含内容**：
 - ✅ 3个用户画像

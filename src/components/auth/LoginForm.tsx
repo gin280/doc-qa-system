@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Logo } from '@/components/ui/logo';
 import Link from 'next/link';
 
 const loginSchema = z.object({
@@ -70,14 +71,19 @@ export function LoginForm() {
 
   return (
     <div className="w-full max-w-md space-y-6">
+      {/* Logo */}
+      <div className="flex justify-center mb-4">
+        <Logo size="md" />
+      </div>
+      
       <div className="space-y-2 text-center">
         <h1 className="text-3xl font-bold">欢迎回来</h1>
-        <p className="text-gray-500">登录您的账户</p>
+        <p className="text-muted-foreground">登录您的账户</p>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {error && (
-          <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md border border-red-200">
+          <div className="p-3 text-sm text-destructive bg-destructive/10 rounded-md border border-destructive/30 animate-in fade-in slide-in-from-top-2 duration-300">
             {error}
           </div>
         )}
@@ -95,7 +101,7 @@ export function LoginForm() {
             aria-invalid={errors.email ? 'true' : 'false'}
           />
           {errors.email && (
-            <p className="text-sm text-red-500" role="alert">
+            <p className="text-sm text-destructive animate-in fade-in slide-in-from-top-1 duration-200" role="alert">
               {errors.email.message}
             </p>
           )}
@@ -114,7 +120,7 @@ export function LoginForm() {
             aria-invalid={errors.password ? 'true' : 'false'}
           />
           {errors.password && (
-            <p className="text-sm text-red-500" role="alert">
+            <p className="text-sm text-destructive animate-in fade-in slide-in-from-top-1 duration-200" role="alert">
               {errors.password.message}
             </p>
           )}
@@ -138,7 +144,7 @@ export function LoginForm() {
           </div>
           <Link
             href="/forgot-password"
-            className="text-sm text-blue-600 hover:underline"
+            className="text-sm text-primary link-underline"
           >
             忘记密码?
           </Link>
@@ -151,7 +157,7 @@ export function LoginForm() {
 
       <div className="text-center text-sm">
         还没有账号?{' '}
-        <Link href="/register" className="text-blue-600 hover:underline font-medium">
+        <Link href="/register" className="text-primary link-underline font-medium">
           立即注册
         </Link>
       </div>

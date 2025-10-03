@@ -1,0 +1,149 @@
+schema: 1
+story: '1.8'
+story_title: '全局 UI/UX 增强优化'
+gate: CONCERNS
+status_reason: '存在3个严重风险(主题迁移、动画性能、打包体积)需要特别关注，但风险可通过缓解措施控制。建议分阶段实施并严格测试。'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-01-03T10:30:00Z'
+
+top_issues:
+  - id: 'TECH-001'
+    severity: high
+    finding: '大规模主题系统迁移(50+处修改)可能导致样式破坏或遗漏'
+    suggested_action: '使用grep自动检测硬编码颜色，视觉回归测试，分阶段迁移'
+    suggested_owner: dev
+  
+  - id: 'PERF-001'
+    severity: high
+    finding: '移动端动画性能可能低于60fps，影响60%+用户体验'
+    suggested_action: '移动端自动降级动画，真机性能测试，支持prefers-reduced-motion'
+    suggested_owner: dev
+  
+  - id: 'TECH-002'
+    severity: high
+    finding: '新增依赖55KB，接近80KB预算上限，可能超标'
+    suggested_action: '代码分割、Tree Shaking、懒加载、持续监控Bundle大小'
+    suggested_owner: dev
+
+waiver:
+  active: false
+
+# 扩展字段
+quality_score: 54
+expires: '2025-01-17T10:30:00Z'
+
+evidence:
+  risks_identified: 15
+
+test_design:
+  scenarios_total: 47
+  by_level:
+    unit: 18        # 38%
+    integration: 21 # 45%
+    e2e: 8          # 17%
+  by_priority:
+    p0: 15  # 严重风险覆盖
+    p1: 20  # 核心功能
+    p2: 12  # 次要功能
+  coverage_gaps: []  # 所有AC已覆盖
+  special_tests:
+    performance: 13  # 性能专项测试
+    accessibility: 7 # 可访问性测试
+    visual: 6        # 视觉回归测试
+  estimated_time: '2-3天'
+  planning_ref: 'docs/qa/assessments/1.8-test-design-20250103.md'
+  
+risk_summary:
+  totals:
+    critical: 3  # score 9
+    high: 4      # score 6
+    medium: 5    # score 4
+    low: 3       # score 2-3
+  highest:
+    id: TECH-001
+    score: 9
+    title: '大规模主题系统迁移导致样式破坏'
+  recommendations:
+    must_fix:
+      - '实施前完成测试环境搭建和自动化检测工具'
+      - '真实移动设备性能测试，确保FPS≥60'
+      - 'Bundle分析确保总体积<80KB'
+      - '完整的视觉回归测试覆盖所有页面'
+    monitor:
+      - '部署后监控LCP, FID, CLS指标'
+      - '主题切换性能和错误率'
+      - '用户反馈和业务指标'
+      - 'JavaScript错误率和资源加载'
+
+deployment_strategy:
+  approach: 'staged_rollout'
+  phases:
+    - name: '内部测试'
+      duration: '1-2天'
+      criteria: '团队测试，性能指标收集'
+    
+    - name: '灰度发布'
+      duration: '2-3天'
+      coverage: '10%用户'
+      criteria: 'A/B测试，监控指标，收集反馈'
+    
+    - name: '全量发布'
+      criteria: '所有指标正常，保留回滚机制'
+  
+  rollback_triggers:
+    - 'LCP >4s'
+    - 'JavaScript错误率>5%'
+    - '用户投诉显著增加'
+
+risk_by_category:
+  technical: 5  # 3 critical, 2 high
+  performance: 4  # 1 critical, 2 high, 1 medium
+  business: 3  # 1 medium, 2 low
+  operational: 3  # 2 medium, 1 low
+  security: 0
+  data: 0
+
+recommendations:
+  immediate:
+    - action: '制定详细测试清单，包含所有风险覆盖场景'
+      refs: ['docs/qa/assessments/1.8-risk-20250103.md']
+    
+    - action: '准备真实移动设备(iPhone SE, 低端Android)用于性能测试'
+      refs: ['PERF-001']
+    
+    - action: '配置Bundle分析工具，设置80KB告警阈值'
+      refs: ['TECH-002']
+    
+    - action: '创建主题迁移检查脚本(grep自动化)'
+      refs: ['TECH-001']
+  
+  future:
+    - action: '考虑创建Storybook展示所有主题组件'
+      refs: ['OPS-001']
+    
+    - action: '建立UI组件库文档规范'
+      refs: ['OPS-001']
+    
+    - action: '收集用户对动画效果的反馈进行优化'
+      refs: ['BUS-001']
+
+success_probability: 0.75
+risk_level: 'medium-high'
+
+notes: |
+  Story 1.8是一个中高风险任务(评分54/100)，涉及大规模UI改造。
+  
+  主要挑战:
+  1. 主题系统迁移复杂度高(50+处修改)
+  2. 动画性能优化要求严格(60fps, <80KB)
+  3. 跨浏览器兼容性(OKLCH色彩空间)
+  
+  建议:
+  - 可以继续，但必须严格执行缓解措施
+  - 分阶段部署: 内部测试 → 灰度10% → 全量
+  - 重点测试: 移动端性能、主题完整性、打包体积
+  - 如移动端性能无法达标，建议简化动画或推迟部署
+  
+  完整风险分析见: docs/qa/assessments/1.8-risk-20250103.md
+  测试设计文档见: docs/qa/assessments/1.8-test-design-20250103.md
+
