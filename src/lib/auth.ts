@@ -23,7 +23,7 @@ const authOptions: NextAuthConfig = {
         const password = credentials?.password as string | undefined;
 
         if (!email || !password) {
-          throw new Error('邮箱和密码不能为空');
+          return null;
         }
 
         // 速率限制检查
@@ -34,7 +34,7 @@ const authOptions: NextAuthConfig = {
         });
 
         if (!rateLimitResult.success) {
-          throw new Error('登录尝试过于频繁，请稍后再试');
+          return null;
         }
 
         try {
@@ -45,7 +45,7 @@ const authOptions: NextAuthConfig = {
             .limit(1);
 
           if (!user) {
-            throw new Error('邮箱或密码错误');
+            return null;
           }
 
           const isValid = await bcrypt.compare(
@@ -54,11 +54,11 @@ const authOptions: NextAuthConfig = {
           );
 
           if (!isValid) {
-            throw new Error('邮箱或密码错误');
+            return null;
           }
 
           if (user.status === 'suspended') {
-            throw new Error('您的账户已被暂停，请联系管理员');
+            return null;
           }
 
           return {
@@ -68,10 +68,8 @@ const authOptions: NextAuthConfig = {
             remember: credentials.remember === 'true',
           };
         } catch (error) {
-          if (error instanceof Error) {
-            throw error;
-          }
-          throw new Error('登录失败，请稍后重试');
+          console.error('Login authorization error:', error);
+          return null;
         }
       },
     }),

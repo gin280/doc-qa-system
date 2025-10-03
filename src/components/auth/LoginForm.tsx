@@ -50,7 +50,12 @@ export function LoginForm() {
       });
 
       if (result?.error) {
-        setError(result.error);
+        // NextAuth 返回 "CredentialsSignin" 错误时，显示友好的错误提示
+        if (result.error === 'CredentialsSignin') {
+          setError('邮箱或密码错误，请检查后重试');
+        } else {
+          setError('登录失败，请稍后重试');
+        }
         setIsLoading(false);
       } else if (result?.ok) {
         // 登录成功，跳转到 dashboard
