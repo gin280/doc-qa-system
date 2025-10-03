@@ -5,6 +5,7 @@ import { createId } from '@paralleldrive/cuid2'
 
 // Enums
 export const authProviderEnum = pgEnum('auth_provider', ['EMAIL', 'GOOGLE', 'GITHUB'])
+export const userStatusEnum = pgEnum('user_status', ['active', 'suspended', 'deleted'])
 export const documentStatusEnum = pgEnum('document_status', ['PENDING', 'PARSING', 'EMBEDDING', 'READY', 'FAILED'])
 export const messageRoleEnum = pgEnum('message_role', ['USER', 'ASSISTANT'])
 
@@ -16,6 +17,7 @@ export const users = pgTable('users', {
   name: text('name').notNull(),
   avatarUrl: text('avatar_url'),
   authProvider: authProviderEnum('auth_provider').default('EMAIL').notNull(),
+  status: userStatusEnum('status').default('active').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull()
 }, (table) => ({
