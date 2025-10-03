@@ -11,8 +11,27 @@ const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'node',
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/src/$1',
+    // CRITICAL: More specific patterns MUST come first!
+    // Map drizzle imports to actual location
     '^@/drizzle/(.*)$': '<rootDir>/drizzle/$1',
+    // Map src imports
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
+  // Transform TypeScript files
+  transform: {
+    '^.+\\.(ts|tsx)$': ['@swc/jest', {
+      jsc: {
+        parser: {
+          syntax: 'typescript',
+          tsx: true,
+        },
+        transform: {
+          react: {
+            runtime: 'automatic',
+          },
+        },
+      },
+    }],
   },
   testMatch: [
     '**/__tests__/**/*.{js,jsx,ts,tsx}',
@@ -25,6 +44,8 @@ const customJestConfig = {
     '!**/node_modules/**',
     '!**/.next/**',
   ],
+  // Resolve modules
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
