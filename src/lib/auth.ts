@@ -109,13 +109,16 @@ const authOptions: NextAuthConfig = {
           
           if (!existingUser) {
             // 首次 OAuth 登录：创建新用户
-            await db.insert(users).values({
+            const [newUser] = await db.insert(users).values({
               email: user.email!,
               name: user.name || user.email!.split('@')[0],
               avatarUrl: user.image,
               authProvider: account.provider.toUpperCase() as 'GOOGLE' | 'GITHUB',
               passwordHash: null,
-            });
+            }).returning();
+            
+            // 重要：将数据库ID写入user对象，这样JWT callback可以获取到
+            user.id = newUser.id;
           } else {
             // 账户关联策略：允许相同邮箱使用不同登录方式
             // QA-FEATURE-001: 当前实现允许自动关联，OAuth 用户可登录已存在的邮箱账户
@@ -130,6 +133,9 @@ const authOptions: NextAuthConfig = {
                 })
                 .where(eq(users.id, existingUser.id));
             }
+            
+            // 重要：使用数据库ID，而不是OAuth provider的ID
+            user.id = existingUser.id;
           }
           
           return true;
@@ -142,12 +148,27 @@ const authOptions: NextAuthConfig = {
       return true;
     },
 
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user, trigger, account }) {
       if (user) {
         token.id = user.id;
         token.email = user.email;
         token.name = user.name;
         token.remember = user.remember;
+      }
+      
+      // 对于OAuth登录，确保从数据库获取正确的user ID
+      if (account?.provider === 'google' || account?.provider === 'github') {
+        if (token.email) {
+          const [dbUser] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, token.email as string))
+            .limit(1);
+          
+          if (dbUser) {
+            token.id = dbUser.id;
+          }
+        }
       }
       
       if (trigger === 'signIn' && token.remember) {

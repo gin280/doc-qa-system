@@ -167,6 +167,9 @@ export function sanitizeFilename(filename: string): string {
 
 /**
  * 验证文件扩展名是否与 MIME 类型匹配
+ * 
+ * 注意：浏览器对文件类型识别不一致，特别是.md和.txt文件
+ * 可能被识别为text/plain, text/markdown, 或application/octet-stream
  */
 export function validateFileExtension(
   filename: string,
@@ -178,6 +181,18 @@ export function validateFileExtension(
     return {
       valid: false,
       error: '文件没有扩展名'
+    }
+  }
+
+  // 特殊处理：浏览器可能把.md和.txt识别为application/octet-stream
+  if (mimeType === 'application/octet-stream') {
+    const textExtensions = ['.md', '.txt']
+    if (textExtensions.includes(ext)) {
+      return { valid: true }
+    }
+    return {
+      valid: false,
+      error: `文件扩展名 ${ext} 与 MIME 类型 ${mimeType} 不匹配`
     }
   }
 

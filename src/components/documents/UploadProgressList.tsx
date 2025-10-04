@@ -31,17 +31,17 @@ export function UploadProgressList({
   if (items.length === 0) return null
 
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-foreground">
-          上传队列 ({items.length})
+    <div className="space-y-3">
+      <div className="flex items-center justify-between px-1">
+        <h3 className="text-sm font-semibold text-foreground">
+          上传列表 ({items.length})
         </h3>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {items.filter(i => i.status === 'success').length} / {items.length} 完成
         </p>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
         {items.map((item) => (
           <UploadProgressItem
             key={item.id}
@@ -84,32 +84,60 @@ function UploadProgressItem({
   const isAnimating = item.status === 'pending' || item.status === 'uploading'
 
   return (
-    <div className="flex items-center gap-3 p-3 border border-border rounded-lg bg-card">
-      <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+    <div className={cn(
+      "group relative flex items-start gap-3 p-4 rounded-lg border transition-all duration-200",
+      item.status === 'success' && "bg-green-50/50 dark:bg-green-950/20 border-green-200 dark:border-green-900",
+      item.status === 'error' && "bg-destructive/5 border-destructive/30",
+      item.status === 'uploading' && "bg-primary/5 border-primary/30",
+      item.status === 'pending' && "bg-muted/50 border-border"
+    )}>
+      {/* 文件图标 */}
+      <div className={cn(
+        "flex items-center justify-center w-10 h-10 rounded-lg flex-shrink-0",
+        item.status === 'success' && "bg-green-100 dark:bg-green-900/30",
+        item.status === 'error' && "bg-destructive/10",
+        item.status === 'uploading' && "bg-primary/10",
+        item.status === 'pending' && "bg-muted"
+      )}>
+        <FileText className={cn(
+          "h-5 w-5",
+          item.status === 'success' && "text-green-600 dark:text-green-500",
+          item.status === 'error' && "text-destructive",
+          item.status === 'uploading' && "text-primary",
+          item.status === 'pending' && "text-muted-foreground"
+        )} />
+      </div>
       
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2 mb-1">
-          <p className="text-sm font-medium text-foreground truncate">
-            {item.file.name}
+      {/* 内容区域 */}
+      <div className="flex-1 min-w-0 space-y-2">
+        {/* 文件名和大小 */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-foreground truncate flex-1">
+              {item.file.name}
+            </p>
+            <StatusIcon 
+              className={cn(
+                'h-5 w-5 flex-shrink-0', 
+                statusColor,
+                isAnimating && 'animate-spin'
+              )} 
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {formatFileSize(item.file.size)}
           </p>
-          <StatusIcon 
-            className={cn(
-              'h-4 w-4', 
-              statusColor,
-              isAnimating && 'animate-spin'
-            )} 
-          />
         </div>
 
-        <p className="text-xs text-muted-foreground mb-2">
-          {formatFileSize(item.file.size)}
-        </p>
-
+        {/* 上传进度 */}
         {item.status === 'uploading' && (
-          <div className="space-y-1">
-            <div className="h-1 bg-muted rounded-full overflow-hidden">
+          <div className="space-y-1.5">
+            <div className="h-2 bg-muted rounded-full overflow-hidden">
               <div 
-                className="h-full bg-primary transition-all duration-300"
+                className={cn(
+                  "h-full bg-primary rounded-full transition-all duration-300 ease-out",
+                  item.progress >= 95 && "animate-pulse"
+                )}
                 style={{ width: `${item.progress}%` }}
                 role="progressbar"
                 aria-valuenow={item.progress}
@@ -118,21 +146,27 @@ function UploadProgressItem({
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              {item.progress}% 已上传
+              {item.progress >= 95 ? '服务器处理中...' : `上传中 ${item.progress}%`}
             </p>
           </div>
         )}
 
+        {/* 错误信息 */}
         {item.status === 'error' && item.error && (
-          <p className="text-xs text-destructive">{item.error}</p>
+          <div className="flex items-start gap-2 p-2 rounded-md bg-destructive/10">
+            <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-destructive">{item.error}</p>
+          </div>
         )}
       </div>
 
-      <div className="flex gap-2">
+      {/* 操作按钮 */}
+      <div className="flex items-center gap-1 flex-shrink-0">
         {item.status === 'uploading' && (
           <Button
             size="sm"
             variant="ghost"
+            className="h-8 px-3"
             onClick={() => onCancel(item.id)}
             aria-label={`取消上传 ${item.file.name}`}
           >
@@ -144,6 +178,7 @@ function UploadProgressItem({
           <Button
             size="sm"
             variant="outline"
+            className="h-8 px-3"
             onClick={() => onRetry(item.id)}
             aria-label={`重试上传 ${item.file.name}`}
           >
@@ -155,6 +190,7 @@ function UploadProgressItem({
           <Button
             size="sm"
             variant="ghost"
+            className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
             onClick={() => onRemove(item.id)}
             aria-label={`移除 ${item.file.name}`}
           >

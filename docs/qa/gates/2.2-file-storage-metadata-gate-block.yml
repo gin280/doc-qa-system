@@ -1,0 +1,149 @@
+# Story 2.2 Gate YAML Block
+# 此文件包含风险评估结果，供后续创建完整gate文件时使用
+
+# Risk summary (基于风险评估)
+risk_summary:
+  totals:
+    critical: 2  # SEC-001, DATA-001
+    high: 4      # PERF-001, SEC-002, TECH-001, DATA-002
+    medium: 6    # TECH-002, TECH-003, PERF-002, PERF-003, SEC-003, DATA-003
+    low: 4       # TECH-004, SEC-004, DATA-004, BUS-001
+  
+  highest:
+    id: SEC-001
+    score: 9
+    title: 'Service Role Key泄露风险'
+    description: '如果Service Role Key暴露到客户端，攻击者可绕过RLS访问所有用户数据'
+  
+  recommendations:
+    must_fix:
+      - 'SEC-001: 实施Service Role Key保护（运行时检查、代码审查、Bundle扫描）'
+      - 'DATA-001: 实施分布式事务和补偿机制（上传/删除流程改进、后台清理）'
+    
+    should_fix:
+      - 'PERF-001: 验证Vercel函数配置（maxDuration=300, memory=3008）'
+      - 'SEC-002: 完整测试RLS Policies（跨用户访问、路径遍历）'
+      - 'TECH-001: 实施Storage健康检查和错误监控'
+      - 'DATA-002: 实施定期校准任务和一致性监控'
+    
+    monitor:
+      - 'Storage上传成功率（目标 ≥ 98%）'
+      - 'Storage vs DB数据一致性（告警阈值 > 5%差异）'
+      - 'Supabase Storage使用量（成本告警 > 80GB）'
+      - '跨用户访问尝试（应为0）'
+
+# Gate决策指导
+gate_decision_guidance:
+  FAIL_if:
+    - 'SEC-001未实施任何缓解措施'
+    - 'DATA-001回滚机制未实现'
+    - 'Service Role Key可在客户端bundle中找到'
+  
+  CONCERNS_if:
+    - 'SEC-001已部分缓解但测试未通过'
+    - 'DATA-001已实现但一致性测试失败'
+    - '任何High风险(Score 6)未缓解'
+  
+  PASS_if:
+    - 'SEC-001和DATA-001完全缓解并测试通过'
+    - '所有High风险有缓解策略'
+    - '所有P0测试通过'
+
+# 测试优先级建议
+test_priority:
+  P0_Critical:  # 必须在部署前完成
+    - 'SEC-001: Service Role Key保护测试（3小时）'
+    - 'DATA-001: 回滚机制和一致性测试（4小时）'
+  
+  P1_High:  # 应在部署前完成
+    - 'PERF-001: 大文件上传超时测试（2小时）'
+    - 'SEC-002: RLS Policy安全测试（2小时）'
+    - 'TECH-001: API健康检查测试（1小时）'
+    - 'DATA-002: 配额统计准确性测试（2小时）'
+  
+  P2_Medium:  # 可在部署后补充
+    - 'Medium风险测试套件（6小时）'
+  
+  P3_Low:  # 可在后续Sprint补充
+    - 'Low风险测试套件（2小时）'
+
+# NFR相关风险映射
+nfr_risk_mapping:
+  security:
+    risks: ['SEC-001', 'SEC-002', 'SEC-003', 'SEC-004']
+    critical_count: 1
+    status_recommendation: 'FAIL if SEC-001 not mitigated'
+  
+  performance:
+    risks: ['PERF-001', 'PERF-002', 'PERF-003']
+    critical_count: 0
+    status_recommendation: 'CONCERNS if PERF-001 not configured'
+  
+  reliability:
+    risks: ['DATA-001', 'DATA-002', 'DATA-003', 'DATA-004']
+    critical_count: 1
+    status_recommendation: 'FAIL if DATA-001 not implemented'
+  
+  maintainability:
+    risks: ['TECH-001', 'TECH-002', 'TECH-003', 'TECH-004']
+    critical_count: 0
+    status_recommendation: 'PASS with monitoring'
+
+# 监控指标
+monitoring_metrics:
+  - metric: 'storage_upload_success_rate'
+    target: '>= 98%'
+    alert_threshold: '< 95%'
+  
+  - metric: 'storage_upload_p95_latency'
+    target: '< 30s (10MB file)'
+    alert_threshold: '> 45s'
+  
+  - metric: 'storage_db_consistency_diff'
+    target: '< 1% difference'
+    alert_threshold: '> 5% difference'
+  
+  - metric: 'user_usage_accuracy'
+    target: '100% accurate after daily calibration'
+    alert_threshold: '> 5 users with inconsistency'
+  
+  - metric: 'storage_cost'
+    target: '< 100GB (included in Supabase Pro)'
+    alert_threshold: '> 80GB'
+  
+  - metric: 'cross_user_access_attempts'
+    target: '0 attempts'
+    alert_threshold: '> 0 attempts'
+
+# 部署就绪检查清单
+deployment_readiness:
+  - item: 'Supabase项目已创建并配置'
+    criticality: 'P0'
+  
+  - item: 'Storage bucket "documents"已创建'
+    criticality: 'P0'
+  
+  - item: 'RLS Policies已配置并测试'
+    criticality: 'P0'
+  
+  - item: '环境变量已配置(SUPABASE_URL, ANON_KEY, SERVICE_ROLE_KEY)'
+    criticality: 'P0'
+  
+  - item: 'Service Role Key未暴露到客户端'
+    criticality: 'P0'
+  
+  - item: '补偿事务机制已实现'
+    criticality: 'P0'
+  
+  - item: '后台清理任务已配置(Vercel Cron或手动)'
+    criticality: 'P0'
+  
+  - item: 'Vercel函数配置已验证(maxDuration=300, memory=3008)'
+    criticality: 'P1'
+  
+  - item: 'Storage健康检查已实施'
+    criticality: 'P1'
+  
+  - item: 'Sentry错误监控已配置'
+    criticality: 'P1'
+

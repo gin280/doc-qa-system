@@ -10,8 +10,29 @@ interface FileDropzoneProps {
 }
 
 export function FileDropzone({ onFilesSelected, disabled }: FileDropzoneProps) {
+  const handleDrop = (acceptedFiles: File[], rejectedFiles: any[]) => {
+    console.log('[FileDropzone] Files dropped:', { 
+      accepted: acceptedFiles.length, 
+      rejected: rejectedFiles.length,
+      acceptedFiles: acceptedFiles.map(f => ({ name: f.name, size: f.size, type: f.type })),
+      rejectedFiles: rejectedFiles.map(r => ({ 
+        file: r.file.name, 
+        errors: r.errors.map((e: any) => e.message) 
+      }))
+    })
+    
+    if (rejectedFiles.length > 0) {
+      console.warn('[FileDropzone] Some files were rejected:', rejectedFiles)
+    }
+    
+    if (acceptedFiles.length > 0) {
+      console.log('[FileDropzone] Calling onFilesSelected with accepted files')
+      onFilesSelected(acceptedFiles)
+    }
+  }
+
   const { getRootProps, getInputProps, isDragActive, isDragReject } = useDropzone({
-    onDrop: onFilesSelected,
+    onDrop: handleDrop,
     accept: {
       'application/pdf': ['.pdf'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],

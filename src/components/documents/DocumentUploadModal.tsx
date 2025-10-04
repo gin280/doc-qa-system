@@ -26,11 +26,24 @@ export function DocumentUploadModal({ open, onOpenChange }: DocumentUploadModalP
     addFiles(files)
   }
 
-  const handleClose = () => {
-    if (isUploading) {
-      const confirm = window.confirm('文件正在上传中，确定要关闭吗？')
-      if (!confirm) return
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen) {
+      // 关闭时检查是否正在上传
+      if (isUploading) {
+        const confirmed = window.confirm('文件正在上传中，确定要关闭吗？')
+        if (!confirmed) return
+      }
+      
+      // 关闭时自动清空列表
+      clearAll()
     }
+    
+    onOpenChange(isOpen)
+  }
+
+  const handleComplete = () => {
+    // 点击"完成"按钮时，清空列表并关闭
+    clearAll()
     onOpenChange(false)
   }
 
@@ -39,7 +52,7 @@ export function DocumentUploadModal({ open, onOpenChange }: DocumentUploadModalP
   const canClose = !isUploading || items.every(i => i.status === 'success' || i.status === 'error')
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>上传文档</DialogTitle>
@@ -63,34 +76,32 @@ export function DocumentUploadModal({ open, onOpenChange }: DocumentUploadModalP
                 onRemove={removeItem}
               />
 
-              <div className="flex items-center justify-between pt-4 border-t">
-                <div className="text-sm text-muted-foreground">
+              <div className="flex items-center justify-between pt-3 border-t">
+                <div className="flex items-center gap-3 text-sm">
                   {completedCount > 0 && (
-                    <span className="text-green-600 dark:text-green-500">
-                      {completedCount} 个成功
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-green-600 dark:bg-green-500" />
+                      <span className="text-green-600 dark:text-green-500 font-medium">
+                        {completedCount} 个成功
+                      </span>
+                    </div>
                   )}
                   {failedCount > 0 && (
-                    <span className="text-destructive ml-2">
-                      {failedCount} 个失败
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-destructive" />
+                      <span className="text-destructive font-medium">
+                        {failedCount} 个失败
+                      </span>
+                    </div>
                   )}
                 </div>
 
                 <div className="flex gap-2">
-                  {canClose && items.length > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={clearAll}
-                    >
-                      清空列表
-                    </Button>
-                  )}
                   <Button
                     size="sm"
-                    onClick={handleClose}
+                    onClick={handleComplete}
                     disabled={!canClose}
+                    className="min-w-[80px]"
                   >
                     {isUploading ? '上传中...' : '完成'}
                   </Button>

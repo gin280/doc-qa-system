@@ -98,7 +98,9 @@ export function useDocumentUpload() {
       })
     }
 
-    if (valid.length === 0) return
+    if (valid.length === 0) {
+      return
+    }
 
     // 添加到队列
     const newItems: UploadItem[] = valid.map(file => ({
@@ -136,7 +138,10 @@ export function useDocumentUpload() {
       // 监听上传进度
       xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable) {
-          const progress = Math.round((e.loaded / e.total) * 100)
+          // 进度只到95%，保留最后5%用于服务器处理
+          // 这样用户就不会看到"100%但还没成功"的困惑状态
+          const uploadProgress = Math.round((e.loaded / e.total) * 100)
+          const progress = Math.min(uploadProgress, 95)
           setItems(prev => prev.map(i =>
             i.id === item.id ? { ...i, progress } : i
           ))
@@ -153,22 +158,32 @@ export function useDocumentUpload() {
                 ? { ...i, status: 'success', progress: 100, documentId: response.documents[0]?.id }
                 : i
             ))
+            toast.success('上传成功', {
+              description: `${item.file.name} 上传完成`
+            })
             resolve()
           } catch (error) {
+            console.error('[Upload] Response parse error:', error)
             setItems(prev => prev.map(i =>
               i.id === item.id
                 ? { ...i, status: 'error', error: '响应解析失败' }
                 : i
             ))
+            toast.error('上传失败', {
+              description: '响应解析失败'
+            })
             reject(error)
           }
         } else {
           let errorMessage = '上传失败'
+          let errorDetails = ''
           try {
             const errorResponse = JSON.parse(xhr.responseText)
             errorMessage = errorResponse.error || errorMessage
+            errorDetails = errorResponse.details || ''
+            console.error('[Upload] Server error:', errorResponse)
           } catch {
-            // 使用默认错误消息
+            // 非JSON响应
           }
           
           setItems(prev => prev.map(i =>
@@ -176,27 +191,38 @@ export function useDocumentUpload() {
               ? { ...i, status: 'error', error: errorMessage }
               : i
           ))
+          toast.error('上传失败', {
+            description: errorDetails || errorMessage
+          })
           reject(new Error(errorMessage))
         }
       })
 
       // 错误处理
       xhr.addEventListener('error', () => {
+        console.error('[Upload] Network error')
         setItems(prev => prev.map(i =>
           i.id === item.id
             ? { ...i, status: 'error', error: '网络错误，请检查连接' }
             : i
         ))
+        toast.error('上传失败', {
+          description: '网络错误，请检查连接'
+        })
         reject(new Error('Network error'))
       })
 
       // 超时处理
       xhr.addEventListener('timeout', () => {
+        console.error('[Upload] Timeout')
         setItems(prev => prev.map(i =>
           i.id === item.id
             ? { ...i, status: 'error', error: '上传超时，请重试' }
             : i
         ))
+        toast.error('上传超时', {
+          description: '请重试或联系管理员'
+        })
         reject(new Error('Timeout'))
       })
 
@@ -208,13 +234,16 @@ export function useDocumentUpload() {
 
   // 处理上传队列(并发控制)
   const processUploadQueue = useCallback(async () => {
-    if (isUploading) return
+    if (isUploading) {
+      return
+    }
     
-    const queue = uploadQueueRef.current.filter(item => 
-      items.find(i => i.id === item.id && i.status === 'pending')
-    )
+    // 直接使用uploadQueueRef，不依赖items状态
+    const queue = uploadQueueRef.current
     
-    if (queue.length === 0) return
+    if (queue.length === 0) {
+      return
+    }
 
     setIsUploading(true)
 
@@ -271,7 +300,7 @@ export function useDocumentUpload() {
         })
       }
     }
-  }, [isUploading, items, uploadFile])
+  }, [isUploading, uploadFile])
 
   // 取消上传
   const cancelUpload = useCallback((id: string) => {
