@@ -59,8 +59,9 @@ export function LoginForm() {
         }
         setIsLoading(false);
       } else if (result?.ok) {
-        // 登录成功，跳转到 dashboard
-        window.location.href = '/dashboard';
+        // PO Decision: 直接跳转到主工作区（文档管理）
+        // 减少用户步骤，直达核心功能
+        window.location.href = '/documents';
       }
     } catch (err) {
       console.error('Login error:', err);

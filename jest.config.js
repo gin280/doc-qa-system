@@ -17,7 +17,7 @@ const customJestConfig = {
     // Map src imports
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-  // Transform TypeScript files
+  // Transform TypeScript and JavaScript files
   transform: {
     '^.+\\.(ts|tsx)$': ['@swc/jest', {
       jsc: {
@@ -29,6 +29,13 @@ const customJestConfig = {
           react: {
             runtime: 'automatic',
           },
+        },
+      },
+    }],
+    '^.+\\.js$': ['@swc/jest', {
+      jsc: {
+        parser: {
+          syntax: 'ecmascript',
         },
       },
     }],
@@ -46,6 +53,10 @@ const customJestConfig = {
   ],
   // Resolve modules
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
+  // Transform ESM modules
+  transformIgnorePatterns: [
+    'node_modules/(?!(file-type|next-auth|@auth)/)',
+  ],
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async

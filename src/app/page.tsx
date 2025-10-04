@@ -18,9 +18,10 @@ export default async function Home() {
   // 检查用户登录状态
   const session = await auth();
   
-  // 已登录用户跳转到 Dashboard
+  // PO Decision: 已登录用户直接跳转到主工作区
+  // 减少中转步骤，提升用户体验
   if (session?.user) {
-    redirect('/dashboard');
+    redirect('/documents');
   }
 
   // 未登录用户显示 Landing Page with Hero Animation

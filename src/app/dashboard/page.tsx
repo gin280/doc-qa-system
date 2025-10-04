@@ -1,12 +1,15 @@
 import { auth, signOut } from '@/lib/auth';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Logo } from '@/components/ui/logo';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { db } from '@/lib/db';
 import { users } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
+import { FileText, Upload, MessageSquare, ArrowRight } from 'lucide-react';
 
 // 强制动态渲染
 export const dynamic = 'force-dynamic';
@@ -73,10 +76,64 @@ export default async function DashboardPage() {
           </div>
 
           {/* 主要内容区域 */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             <p className="text-muted-foreground">
               您已成功登录到智能文档问答系统
             </p>
+
+            {/* 快速操作卡片 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* 文档管理 */}
+              <Link href="/documents">
+                <Card className="p-6 hover:shadow-lg transition-all hover:border-primary cursor-pointer group">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                        <FileText className="h-6 w-6 text-primary" />
+                      </div>
+                      <h3 className="font-semibold text-foreground">文档管理</h3>
+                      <p className="text-sm text-muted-foreground">
+                        上传和管理您的文档
+                      </p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                  </div>
+                </Card>
+              </Link>
+
+              {/* 上传文档 */}
+              <Link href="/documents">
+                <Card className="p-6 hover:shadow-lg transition-all hover:border-primary cursor-pointer group">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                        <Upload className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <h3 className="font-semibold text-foreground">上传文档</h3>
+                      <p className="text-sm text-muted-foreground">
+                        快速上传新文档
+                      </p>
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                  </div>
+                </Card>
+              </Link>
+
+              {/* 智能问答 */}
+              <Card className="p-6 opacity-50 cursor-not-allowed">
+                <div className="flex items-start justify-between">
+                  <div className="space-y-2">
+                    <div className="h-12 w-12 rounded-lg bg-green-500/10 flex items-center justify-center">
+                      <MessageSquare className="h-6 w-6 text-green-600 dark:text-green-400" />
+                    </div>
+                    <h3 className="font-semibold text-foreground">智能问答</h3>
+                    <p className="text-sm text-muted-foreground">
+                      即将推出
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
             
             {/* 用户详细信息卡片 */}
             <div className="mt-4 p-4 bg-primary/10 rounded-lg">
