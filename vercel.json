@@ -12,6 +12,10 @@
     "src/app/api/documents/*/parse/route.ts": {
       "memory": 3008,
       "maxDuration": 300
+    },
+    "src/app/api/documents/*/process/route.ts": {
+      "memory": 3008,
+      "maxDuration": 300
     }
   }
 }

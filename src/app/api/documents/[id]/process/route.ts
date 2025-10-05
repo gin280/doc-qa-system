@@ -3,18 +3,19 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { documents } from '@/drizzle/schema'
 import { eq, and } from 'drizzle-orm'
-import { parseDocument, ParseError } from '@/services/documents/parserService'
+import { chunkDocument } from '@/services/documents/chunkingService'
+import { embedAndStoreChunks } from '@/services/documents/embeddingService'
 
 /**
  * 配置Vercel函数
- * 解析大文档需要更长的超时时间
+ * 分块和向量化需要更长的超时时间
  */
 export const maxDuration = 300 // 5分钟
 
 /**
- * POST /api/documents/[id]/parse
+ * POST /api/documents/[id]/process
  * 
- * 解析指定文档
+ * 分块并向量化文档
  */
 export async function POST(
   req: NextRequest,
@@ -50,43 +51,28 @@ export async function POST(
     }
 
     // 3. 检查文档状态
-    if (document.status === 'PARSING') {
+    if (document.status === 'EMBEDDING') {
       return NextResponse.json(
-        { error: '文档正在解析中,请稍后' },
+        { error: '文档正在处理中,请稍后' },
         { status: 409 }
       )
     }
 
-    if (document.status === 'READY') {
+    if (document.status !== 'READY') {
       return NextResponse.json(
         { 
-          success: true,
-          message: '文档已解析完成',
-          document: {
-            id: document.id,
-            filename: document.filename,
-            status: document.status,
-            contentLength: document.contentLength,
-            parsedAt: document.parsedAt,
-            metadata: document.metadata
-          }
-        }
+          error: '文档未解析完成', 
+          currentStatus: document.status 
+        },
+        { status: 400 }
       )
     }
 
-    // 4. 执行解析
-    const result = await parseDocument(documentId)
+    // 4. 执行分块
+    const chunks = await chunkDocument(documentId)
 
-    // 5. 触发异步处理(分块和向量化) - 不等待完成
-    fetch(`${req.nextUrl.origin}/api/documents/${document.id}/process`, {
-      method: 'POST',
-      headers: {
-        'Cookie': req.headers.get('Cookie') || ''
-      }
-    }).catch(err => {
-      console.error('Failed to trigger processing:', err)
-      // 处理失败不影响解析成功响应
-    })
+    // 5. 执行向量化
+    await embedAndStoreChunks(documentId, chunks)
 
     // 6. 返回成功响应
     return NextResponse.json({
@@ -95,25 +81,33 @@ export async function POST(
         id: document.id,
         filename: document.filename,
         status: 'READY',
-        contentLength: result.contentLength,
-        metadata: result.metadata,
-        parsedAt: new Date().toISOString()
+        chunksCount: chunks.length
       }
     })
 
   } catch (error) {
-    console.error('Parse error:', error)
+    console.error('Process error:', error)
 
-    // 处理解析特定错误
-    if (error instanceof ParseError) {
-      const statusCode = error.type === 'TIMEOUT_ERROR' ? 504 : 400
-      return NextResponse.json(
-        { 
-          error: error.message,
-          errorType: error.type
-        },
-        { status: statusCode }
-      )
+    // 处理特定错误
+    if (error instanceof Error) {
+      if (error.name === 'ChunkingError') {
+        return NextResponse.json(
+          { error: `分块失败: ${error.message}` },
+          { status: 400 }
+        )
+      }
+      if (error.name === 'EmbeddingError') {
+        return NextResponse.json(
+          { error: `向量化失败: ${error.message}` },
+          { status: 400 }
+        )
+      }
+      if (error.message.includes('timeout')) {
+        return NextResponse.json(
+          { error: '处理超时,请稍后重试' },
+          { status: 504 }
+        )
+      }
     }
 
     // 通用错误
@@ -125,16 +119,15 @@ export async function POST(
 }
 
 /**
- * GET /api/documents/[id]/parse
+ * GET /api/documents/[id]/process
  * 
- * 获取文档解析状态
+ * 获取文档处理状态
  */
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    // 认证检查
     const session = await auth()
     if (!session?.user) {
       return NextResponse.json(
@@ -145,7 +138,6 @@ export async function GET(
 
     const documentId = params.id
 
-    // 查询文档
     const [document] = await db.select()
       .from(documents)
       .where(
@@ -162,22 +154,19 @@ export async function GET(
       )
     }
 
-    // 返回解析状态
     return NextResponse.json({
       id: document.id,
       filename: document.filename,
       status: document.status,
-      contentLength: document.contentLength,
-      parsedAt: document.parsedAt,
+      chunksCount: document.chunksCount,
       metadata: document.metadata
     })
 
   } catch (error) {
-    console.error('Get parse status error:', error)
+    console.error('Get process status error:', error)
     return NextResponse.json(
       { error: '服务器错误,请稍后重试' },
       { status: 500 }
     )
   }
 }
-

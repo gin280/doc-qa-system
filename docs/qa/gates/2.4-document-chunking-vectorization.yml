@@ -1,0 +1,127 @@
+schema: 1
+story: '2.4'
+story_title: '文档分块与向量化'
+gate: CONCERNS
+status_reason: 'Missing vector repository implementation (AC4), zero test coverage, and unvalidated performance requirements block production readiness.'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-01-05T12:00:00Z'
+
+top_issues:
+  - id: 'ARCH-001'
+    severity: high
+    finding: 'Vector Repository not implemented - AC4 incomplete'
+    suggested_action: 'Implement PgVectorRepository class as specified; currently using direct SQL'
+    refs: ['src/infrastructure/vector/pgvector.repository.ts']
+  
+  - id: 'TEST-001'
+    severity: high
+    finding: 'Test coverage is 0% for core services'
+    suggested_action: 'Implement comprehensive unit tests for chunkingService and embeddingService'
+    refs: ['tests/unit/services/chunkingService.test.ts', 'tests/unit/services/embeddingService.test.ts']
+  
+  - id: 'TEST-002'
+    severity: high
+    finding: 'Integration tests are stubs only'
+    suggested_action: 'Implement real integration tests for process API endpoints'
+    refs: ['tests/integration/api/process.test.ts']
+  
+  - id: 'PERF-001'
+    severity: medium
+    finding: 'Performance requirements (AC9) not validated'
+    suggested_action: 'Run performance benchmarks: 10KB < 10s, 100KB < 60s'
+    refs: ['src/services/documents/embeddingService.ts']
+  
+  - id: 'REL-001'
+    severity: medium
+    finding: 'Metadata overwrite risk on error handling'
+    suggested_action: 'Preserve existing metadata when setting error state'
+    refs: ['src/services/documents/chunkingService.ts:115']
+  
+  - id: 'SEC-001'
+    severity: medium
+    finding: 'No rate limiting on process API'
+    suggested_action: 'Add rate limiting to prevent cost/DoS attacks'
+    refs: ['src/app/api/documents/[id]/process/route.ts']
+  
+  - id: 'CODE-001'
+    severity: low
+    finding: 'Unused import: vectorConfig in embeddingService'
+    suggested_action: 'Remove unused import'
+    refs: ['src/services/documents/embeddingService.ts:4']
+
+waiver:
+  active: false
+
+quality_score: 50
+# Calculation: 100 - (20 × 0 FAILs) - (10 × 5 CONCERNS) = 50
+
+evidence:
+  tests_reviewed: 3
+  risks_identified: 7
+  trace:
+    ac_covered: [2, 5, 6]
+    ac_gaps: [1, 3, 4, 7, 8, 9, 10]
+
+nfr_validation:
+  security:
+    status: CONCERNS
+    notes: 'Auth checks present but missing rate limiting and API key validation'
+  performance:
+    status: CONCERNS
+    notes: 'Batch processing implemented but performance not validated, N+1 query issues'
+  reliability:
+    status: CONCERNS
+    notes: 'Error handling exists but no transactions, metadata overwrite risk'
+  maintainability:
+    status: PASS
+    notes: 'Clean architecture with Repository pattern, well-documented'
+
+recommendations:
+  immediate:
+    - action: 'Implement PgVectorRepository class'
+      refs: ['src/infrastructure/vector/']
+      owner: dev
+    - action: 'Add comprehensive unit tests'
+      refs: ['tests/unit/services/']
+      owner: dev
+    - action: 'Add integration tests'
+      refs: ['tests/integration/api/']
+      owner: dev
+    - action: 'Fix metadata overwrite bug'
+      refs: ['src/services/documents/chunkingService.ts:115']
+      owner: dev
+    - action: 'Remove unused import'
+      refs: ['src/services/documents/embeddingService.ts:4']
+      owner: dev
+  
+  future:
+    - action: 'Add rate limiting middleware'
+      refs: ['src/app/api/documents/[id]/process/route.ts']
+      owner: dev
+    - action: 'Run performance benchmarks'
+      refs: ['tests/performance/']
+      owner: dev
+    - action: 'Optimize N+1 queries with bulk updates'
+      refs: ['src/services/documents/embeddingService.ts:80-102']
+      owner: dev
+    - action: 'Add transaction support'
+      refs: ['src/services/documents/']
+      owner: dev
+
+risk_summary:
+  totals:
+    critical: 2
+    high: 2
+    medium: 2
+    low: 1
+  highest:
+    id: 'RISK-001'
+    score: 9
+    title: 'Missing Vector Repository Implementation'
+  recommendations:
+    must_fix:
+      - 'Implement PgVectorRepository as per AC4'
+      - 'Add test coverage (currently 0%)'
+    monitor:
+      - 'API rate limiting for cost control'
+      - 'Database transaction support'

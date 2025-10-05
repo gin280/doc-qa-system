@@ -1,0 +1,34 @@
+# Risk Summary Block for Story 2.4
+# Paste this into the gate file under risk_summary section
+
+risk_summary:
+  totals:
+    critical: 2  # PERF-001, BUS-001
+    high: 4      # TECH-001, DATA-001, PERF-002, TECH-002
+    medium: 5    # OPS-001, DATA-002, TECH-003, PERF-003, BUS-002
+    low: 3       # OPS-002, TECH-004, OPS-003
+  
+  highest:
+    id: PERF-001
+    score: 9
+    title: 'pgvector索引配置不当导致性能崩溃'
+  
+  recommendations:
+    must_fix:
+      - 'PERF-001: 完成pgvector索引性能测试,确保查询<500ms'
+      - 'BUS-001: 实现OpenAI API重试机制和并发控制'
+      - 'TECH-001: 使用真实中文文档测试分块质量,准确率>80%'
+      - 'DATA-001: 实现批量错误恢复和状态记录机制'
+    
+    monitor:
+      - 'pgvector查询延迟(目标p95<500ms)'
+      - 'OpenAI API 429错误率(告警阈值10/hour)'
+      - '向量化成本(告警阈值$10/day)'
+      - '批量处理失败率(告警阈值5%)'
+      - '文档处理超时率'
+
+  risk_score: 51/100  # Medium-High Risk
+  
+  assessment_date: '2025-01-05'
+  reviewer: 'Quinn (Test Architect)'
+  next_review: 'After Task 5 (EmbeddingService) completion'

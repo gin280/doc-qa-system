@@ -1,0 +1,45 @@
+# Test Design Gate Block for Story 2.4
+# Paste this into the main gate file under test_design section
+
+test_design:
+  scenarios_total: 42
+  by_level:
+    unit: 22
+    integration: 16
+    e2e: 4
+  by_priority:
+    p0: 24
+    p1: 12
+    p2: 6
+  coverage_gaps: []  # No gaps - all ACs have comprehensive coverage
+  
+  # Additional metrics
+  test_files_required: 9
+  estimated_execution_time:
+    unit: "30 seconds"
+    integration: "5 minutes"
+    e2e: "3 minutes"
+    total: "8-9 minutes"
+  
+  # Coverage by AC
+  ac_coverage:
+    ac1_chunking_service: 7
+    ac2_chunking_strategy: 7
+    ac3_embedding_service: 8
+    ac4_vector_interface: 6
+    ac5_pgvector_integration: 7
+    ac6_batch_processing: 6
+    ac7_status_management: 6
+    ac8_error_handling: 7
+    ac9_performance: 5
+    ac10_api_endpoints: 9
+  
+  # Risk mitigation
+  risks_addressed:
+    - PERF-001  # Performance with large documents
+    - SEC-001   # Unauthorized API access
+    - DATA-001  # Vector data corruption
+    - TECH-001  # LLM API failures
+    - TECH-002  # pgvector performance
+    - OPS-001   # Concurrent processing
+    - DATA-002  # Incomplete metadata

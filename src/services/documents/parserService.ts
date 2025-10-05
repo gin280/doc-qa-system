@@ -115,6 +115,7 @@ export async function parseDocument(
         parsedAt: new Date(),
         metadata: {
           ...result.metadata,
+          content: result.content, // 存储解析后的内容供分块使用
           parseTime,
           memoryUsed,
           parsedAt: new Date().toISOString()
