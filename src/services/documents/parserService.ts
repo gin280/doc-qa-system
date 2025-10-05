@@ -107,18 +107,44 @@ export async function parseDocument(
     const endMemory = process.memoryUsage().heapUsed
     const memoryUsed = endMemory - startMemory
 
+    // 5.5 清理null字符 - PostgreSQL JSON不支持\u0000
+    // 统计并记录清理的null字符数量，用于监控解析质量
+    const nullCharCount = (result.content.match(/\u0000/g) || []).length
+    const cleanContent = result.content.replace(/\u0000/g, '')
+    
+    if (nullCharCount > 0) {
+      console.warn(`[ParseService] Document ${documentId}: 清理了 ${nullCharCount} 个null字符 (\u0000)`)
+    }
+    
+    const cleanMetadata = { ...result.metadata }
+    // 清理metadata中所有字符串字段的null字符
+    Object.keys(cleanMetadata).forEach(key => {
+      if (typeof cleanMetadata[key] === 'string') {
+        const nullCount = (cleanMetadata[key].match(/\u0000/g) || []).length
+        if (nullCount > 0) {
+          console.warn(`[ParseService] Metadata.${key}: 清理了 ${nullCount} 个null字符`)
+        }
+        cleanMetadata[key] = cleanMetadata[key].replace(/\u0000/g, '')
+      }
+    })
+
     // 6. 更新数据库(成功)
     await db.update(documents)
       .set({
         status: 'READY',
-        contentLength: result.contentLength,
+        contentLength: cleanContent.length,
         parsedAt: new Date(),
         metadata: {
-          ...result.metadata,
-          content: result.content, // 存储解析后的内容供分块使用
+          ...cleanMetadata,
+          content: cleanContent, // 存储清理后的内容供分块使用
           parseTime,
           memoryUsed,
-          parsedAt: new Date().toISOString()
+          parsedAt: new Date().toISOString(),
+          // 记录是否进行了null字符清理
+          ...(nullCharCount > 0 && { 
+            nullCharsRemoved: nullCharCount,
+            contentCleaned: true 
+          })
         }
       })
       .where(eq(documents.id, documentId))
@@ -126,12 +152,17 @@ export async function parseDocument(
     // 记录解析日志
     console.log(`[ParseService] Successfully parsed document ${documentId}`, {
       fileType: document.fileType,
-      contentLength: result.contentLength,
+      contentLength: cleanContent.length,
       parseTime,
       memoryUsed: `${(memoryUsed / 1024 / 1024).toFixed(2)}MB`
     })
 
-    return result
+    // 返回清理后的结果
+    return {
+      ...result,
+      content: cleanContent,
+      contentLength: cleanContent.length
+    }
 
   } catch (error) {
     // 7. 更新数据库(失败)

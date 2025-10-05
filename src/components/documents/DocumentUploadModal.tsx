@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { FileDropzone } from './FileDropzone'
 import { UploadProgressList } from './UploadProgressList'
 import { useDocumentUpload } from '@/hooks/useDocumentUpload'
+import { mutate } from 'swr'
 
 interface DocumentUploadModalProps {
   open: boolean
@@ -34,6 +35,17 @@ export function DocumentUploadModal({ open, onOpenChange }: DocumentUploadModalP
         if (!confirmed) return
       }
       
+      // 如果有成功上传的文档，刷新文档列表
+      const hasSuccess = items.some(i => i.status === 'success')
+      if (hasSuccess) {
+        // 使用 mutate 刷新所有文档列表查询
+        mutate(
+          (key) => typeof key === 'string' && key.startsWith('/api/documents'),
+          undefined,
+          { revalidate: true }
+        )
+      }
+      
       // 关闭时自动清空列表
       clearAll()
     }
@@ -42,6 +54,17 @@ export function DocumentUploadModal({ open, onOpenChange }: DocumentUploadModalP
   }
 
   const handleComplete = () => {
+    // 如果有成功上传的文档，刷新文档列表
+    const hasSuccess = items.some(i => i.status === 'success')
+    if (hasSuccess) {
+      // 使用 mutate 刷新所有文档列表查询
+      mutate(
+        (key) => typeof key === 'string' && key.startsWith('/api/documents'),
+        undefined,
+        { revalidate: true }
+      )
+    }
+    
     // 点击"完成"按钮时，清空列表并关闭
     clearAll()
     onOpenChange(false)

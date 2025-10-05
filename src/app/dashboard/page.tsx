@@ -9,7 +9,8 @@ import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { db } from '@/lib/db';
 import { users } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
-import { FileText, Upload, MessageSquare, ArrowRight } from 'lucide-react';
+import { FileText, MessageSquare, ArrowRight } from 'lucide-react';
+import { UploadButton } from '@/components/dashboard/UploadButton';
 
 // 强制动态渲染
 export const dynamic = 'force-dynamic';
@@ -101,23 +102,8 @@ export default async function DashboardPage() {
                 </Card>
               </Link>
 
-              {/* 上传文档 */}
-              <Link href="/documents">
-                <Card className="p-6 hover:shadow-lg transition-all hover:border-primary cursor-pointer group">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2">
-                      <div className="h-12 w-12 rounded-lg bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
-                        <Upload className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <h3 className="font-semibold text-foreground">上传文档</h3>
-                      <p className="text-sm text-muted-foreground">
-                        快速上传新文档
-                      </p>
-                    </div>
-                    <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                  </div>
-                </Card>
-              </Link>
+              {/* 上传文档 - 直接打开模态框 */}
+              <UploadButton />
 
               {/* 智能问答 */}
               <Card className="p-6 opacity-50 cursor-not-allowed">

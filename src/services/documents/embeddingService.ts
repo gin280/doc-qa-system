@@ -147,8 +147,7 @@ export async function embedAndStoreChunks(
 
     // 9. 更新文档状态为READY
     const existingMetadata = (document.metadata as Record<string, any>) || {}
-    // 根据LLM提供商确定向量维度
-    const dimension = llmConfig.provider === 'zhipu' ? 1024 : 1536
+    // dimension已经在函数开头定义过了，这里直接使用
     
     await db.update(documents)
       .set({
