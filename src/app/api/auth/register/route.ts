@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import bcrypt from 'bcrypt'
 import { db } from '@/lib/db'
-import { users, userUsage } from '../../../../../drizzle/schema'
+import { users, userUsage } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 

@@ -1,7 +1,10 @@
 // src/lib/db.ts
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
-import * as schema from '../../drizzle/schema'
+import * as schema from '@/drizzle/schema'
+
+// 设置 Node.js 进程时区为中国标准时间
+process.env.TZ = 'Asia/Shanghai'
 
 // 检查DATABASE_URL环境变量
 if (!process.env.DATABASE_URL) {

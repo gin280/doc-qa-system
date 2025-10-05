@@ -187,13 +187,14 @@ export async function POST(req: NextRequest) {
           userId: session.user.id,
           filename: sanitizedFilename,
           fileSize: file.size,
-          fileType: file.type,
+          fileType: normalizedMimeType,  // 使用规范化后的MIME类型
           storagePath,  // 实际Storage路径
           status: 'PENDING',
           chunksCount: 0,
           contentLength: 0,
           metadata: {
             originalFilename: file.name,
+            originalMimeType: file.type,  // 保留原始类型用于追溯
             uploadedFrom: req.headers.get('user-agent') || 'unknown',
             validatedType: typeValidation.detectedType,
             supabaseMetadata: {
@@ -234,7 +235,19 @@ export async function POST(req: NextRequest) {
           )
         }
 
-        // 11. 返回成功响应
+        // 11. Story 2.3: 触发异步解析(不等待完成)
+        // 使用异步调用,不阻塞上传响应
+        fetch(`${req.nextUrl.origin}/api/documents/${document.id}/parse`, {
+          method: 'POST',
+          headers: {
+            'Cookie': req.headers.get('Cookie') || ''
+          }
+        }).catch(err => {
+          console.error('[Upload] Failed to trigger parsing:', err)
+          // 解析失败不影响上传成功响应
+        })
+
+        // 12. 返回成功响应
         return NextResponse.json({
           success: true,
           documents: [{

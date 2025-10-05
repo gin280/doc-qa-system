@@ -1,0 +1,500 @@
+schema: 1
+story: '2.3'
+story_title: 'PDF和Word文档解析'
+gate: CONCERNS
+status_reason: '代码质量优秀(95/100)，TEST-001已解决，测试fixtures已生成88%。剩余工作：实现测试用例逻辑（预估1-1.5天）。'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-01-05T14:30:00Z'
+
+top_issues:
+  - id: OPS-003
+    severity: high
+    finding: '测试用例逻辑未实现 - 13个测试框架通过但都是TODO占位符(expect(true).toBe(true))，无实际断言'
+    suggested_action: '实现测试用例的实际断言逻辑，使用已生成的15个fixtures文件（预估1-1.5天）'
+  
+  - id: OPS-004
+    severity: low
+    finding: '剩余2个fixtures需手动创建（encrypted.pdf, old-format.doc）'
+    suggested_action: '使用qpdf或Adobe Acrobat创建加密PDF；用Word另存为.doc格式'
+  
+  - id: OPS-001
+    severity: medium
+    finding: '其他测试套件有25个失败（主要storageService相关）'
+    suggested_action: '修复测试套件失败，确保整体测试健康度'
+
+waiver:
+  active: false
+
+# 扩展字段
+
+quality_score: 80
+# 计算: 代码质量95分 × 60% + 测试准备85分 × 40% = 57 + 34 = 91
+# 但因测试用例未实现为High问题，降低到80分（从75分提升）
+
+expires: '2025-01-18T20:00:00Z'  # 2周后过期，需重新评估
+
+progress_since_last_review:
+  test_infrastructure_fixed: 'TEST-001已解决 - 测试模块路径问题修复，13个测试框架可运行'
+  tests_passing: '13/13测试框架通过(但都是TODO占位符)'
+  fixtures_progress: '保持15/17 (88%完成)'
+  risk_score_improvement: '从72/100提升到80/100 (+8分)'
+  blocking_issues_resolved: 2  # TEST-001和大部分测试基础设施
+  time_to_completion_reduced: '从1-2天缩短到1-1.5天'
+  key_achievement: 'TEST-001修复 + 测试框架可运行 + fixtures已就绪'
+
+evidence:
+  story_status: In Progress (Testing Phase)
+  code_implementation: COMPLETE ✅
+  code_quality: EXCELLENT (95/100) ✅
+  fixtures_generated: 15/17 (88%) ✅
+  fixture_generator_script: scripts/generate-test-fixtures.ts ✅
+  test_framework_working: true ✅ (NEW - TEST-001 resolved)
+  tests_implemented: 0/13 (框架就绪,逻辑待实现) ⚠️
+  tests_passing: 13/13 (占位符测试) ⚠️
+  test_coverage: 0% (无实际断言) ❌
+  test_runnable: true ✅ (NEW)
+  
+  code_review_completed: true
+  all_must_fix_code_issues_resolved: true
+  lint_errors: 0
+  
+  fixtures_breakdown:
+    pdf_files:
+      generated: 7
+      required: 8
+      completion: 88%
+      missing: ['encrypted.pdf']
+    docx_files:
+      generated: 4
+      required: 5
+      completion: 80%
+      missing: ['old-format.doc']
+    text_files:
+      generated: 4
+      required: 4
+      completion: 100%
+      missing: []
+  
+  trace:
+    requirements_total: 8  # 8个AC
+    ac_implemented: [1, 2, 3, 4, 5, 6, 7, 8]  # 所有AC已实现
+    ac_tested: []  # 无AC有测试验证
+    coverage_gaps: [1, 2, 3, 4, 5, 6, 7, 8]  # 所有AC缺少测试覆盖
+    
+  test_design:
+    scenarios_total: 67
+    scenarios_implemented: 0
+    by_level:
+      unit: 0/52
+      integration: 0/20
+      e2e: 0/11
+    by_priority:
+      p0: 0/27
+      p1: 0/28
+      p2: 0/12
+
+risk_summary:
+  totals:
+    critical: 0   # OPS-002已解决
+    high: 2       # TEST-001 测试无法运行, OPS-003 测试未实现
+    medium: 1     # OPS-001 其他测试失败
+    low: 1        # OPS-004 剩余fixtures
+  
+  resolved_risks:
+    - id: PERF-001
+      original_score: 6
+      status: RESOLVED ✅
+      resolution: '超时控制已实现 (withTimeout函数, 30秒)'
+    - id: TECH-001
+      original_score: 9
+      status: RESOLVED ✅
+      resolution: 'PDF格式验证已实现 (isPDFValid检查魔术字节)'
+    - id: TECH-003
+      original_score: 6
+      status: RESOLVED ✅
+      resolution: '内存监控已实现 (记录startMemory/endMemory)'
+    - id: OPS-002
+      original_score: 9
+      status: RESOLVED ✅
+      resolution: '测试fixtures已自动生成88% (15/17个文件)'
+    - id: TEST-001
+      original_score: 8
+      status: RESOLVED ✅ (NEW)
+      resolution: 'Jest配置修复 - 添加相对路径映射,统一使用@/别名'
+  
+  current_risks:
+    - id: OPS-003
+      score: 6
+      title: '测试用例逻辑未实现'
+      impact: '测试框架通过但无实际断言，无法验证功能正确性'
+      status: IN_PROGRESS
+  
+  highest:
+    id: OPS-003
+    score: 6
+    title: '测试用例逻辑未实现，需要添加实际断言'
+  
+  recommendations:
+    must_fix:
+      - '实现13个测试用例的实际断言逻辑（使用已有的15个fixtures）'
+      - '达到85%测试覆盖率目标（1-1.5天）'
+    should_fix:
+      - '手动创建2个剩余fixtures（encrypted.pdf, old-format.doc）'
+      - '修复其他测试套件的25个失败'
+      - '添加性能测试验证（1MB<5s, 10MB<30s）'
+    monitor:
+      - '测试覆盖率进展'
+      - '测试通过率'
+      - 'P0测试场景完成度'
+
+nfr_validation:
+  _assessed: [performance, reliability, security, maintainability]
+  
+  performance:
+    status: PASS (Code) / NOT_TESTED (Runtime)
+    notes: '超时控制和内存监控已实现，但缺少性能测试验证'
+    code_implementation:
+      - '✅ 超时控制: withTimeout()函数，30秒限制'
+      - '✅ 内存监控: 记录解析前后内存使用'
+      - '✅ 性能日志: 记录解析时间和内存消耗'
+      - '✅ 性能测试文件: 1mb.pdf和10mb.pdf已生成'
+    missing_validation:
+      - '❌ 无1MB<5秒性能测试'
+      - '❌ 无10MB<30秒性能测试'
+      - '❌ 无超时机制实际测试'
+  
+  reliability:
+    status: PASS (Code) / NOT_TESTED (Runtime)
+    notes: 'PDF验证、错误处理、状态机已实现，fixtures已准备'
+    code_implementation:
+      - '✅ PDF格式验证: isPDFValid()检查魔术字节'
+      - '✅ 错误分类: 4种ParseError类型完整'
+      - '✅ 状态机: PENDING→PARSING→READY/FAILED'
+      - '✅ 失败隔离: 单个文档失败不影响其他'
+      - '✅ 测试fixtures: 7个正常PDF + 1个损坏PDF已生成'
+    missing_validation:
+      - '❌ 无加密PDF错误测试（fixture待创建）'
+      - '❌ 无损坏PDF错误测试（fixture已有，测试待实现）'
+      - '❌ 无格式兼容性测试（fixtures已有，测试待实现）'
+  
+  security:
+    status: PASS
+    notes: '安全设计合理，认证授权正确实现'
+    strengths:
+      - '✅ 认证检查: Session验证正确'
+      - '✅ 授权验证: 文档所有权检查正确'
+      - '✅ 加密PDF拒绝: 不尝试破解'
+      - '✅ 数据隔离: 用户数据完全隔离'
+    recommendations:
+      - '建议添加速率限制（P2）'
+  
+  maintainability:
+    status: CONCERNS
+    notes: '代码质量优秀，fixtures已准备，但缺少测试保护'
+    strengths:
+      - '✅ 代码结构清晰: 服务分层合理'
+      - '✅ 类型定义完整: TypeScript类型完善'
+      - '✅ 错误处理统一: ParseError类一致'
+      - '✅ 日志记录完善: 成功/失败日志齐全'
+      - '✅ 无Lint错误: 代码风格一致'
+      - '✅ Fixtures可重复生成: 自动化脚本已创建'
+    concerns:
+      - '❌ 测试覆盖率0%: 重构风险高'
+      - '❌ 缺少回归测试: 无法安全修改'
+
+code_quality_review:
+  overall_score: 95/100
+  
+  implementation_completeness:
+    score: 100/100
+    notes: '所有8个AC已完整实现'
+  
+  code_structure:
+    score: 95/100
+    notes: '代码组织清晰，职责分离合理'
+  
+  error_handling:
+    score: 100/100
+    notes: '错误处理完善，分类清晰'
+  
+  performance_implementation:
+    score: 90/100
+    notes: '性能相关代码已实现'
+  
+  security_implementation:
+    score: 95/100
+    notes: '安全设计合理'
+
+test_quality_review:
+  overall_score: 65/100  # 从50/100提升到65/100 (TEST-001解决带来显著提升)
+  
+  test_fixtures:
+    score: 88/100
+    notes: 'Fixtures已自动生成88%，可重复生成'
+    details:
+      - '✅ PDF fixtures: 7/8准备 (88%)'
+      - '✅ Word fixtures: 4/5准备 (80%)'
+      - '✅ 文本fixtures: 4/4准备 (100%)'
+      - '✅ 自动生成脚本: 已创建'
+      - '✅ 生成报告: 详细文档已创建'
+      - '⏳ 剩余2个文件需手动创建(非阻塞)'
+  
+  test_coverage:
+    score: 0/100
+    notes: '测试覆盖率0%，测试仅为占位符'
+    current: 0%
+    target: 85%
+    gap: 85%
+    reason: '所有测试都是expect(true).toBe(true)占位符'
+  
+  test_implementation:
+    score: 30/100  # 从10/100提升(框架就绪+可运行)
+    notes: '测试框架完整且可运行，但缺少实际断言逻辑'
+    details:
+      - '✅ 测试文件结构正确'
+      - '✅ 测试框架配置正确 (TEST-001已解决)'
+      - '✅ Mock依赖设置正确'
+      - '✅ 13个测试框架通过 (NEW)'
+      - '❌ 所有测试都是TODO占位符(expect(true).toBe(true))'
+      - '✅ 测试fixtures已就绪，可立即开始实现'
+  
+  test_execution:
+    score: 80/100  # 从0/100大幅提升 (TEST-001解决)
+    notes: '测试框架可正常运行，13/13测试通过'
+    resolved_issues:
+      - '✅ TEST-001: 模块路径问题已修复'
+      - '✅ Jest配置增强(moduleNameMapper)'
+      - '✅ 相对路径映射添加'
+    remaining_work:
+      - '实现测试用例的实际断言逻辑'
+      - '添加真实的fixtures文件读取和验证'
+
+recommendations:
+  immediate:
+    - action: '实现测试用例的实际断言逻辑'
+      priority: P0
+      owner: Dev
+      time_estimate: '1-1.5天'
+      refs: ['tests/unit/services/parserService.test.ts']
+      rationale: '13个测试框架已就绪，fixtures已生成，可立即开始实现'
+      blocking: true
+      steps:
+        - '替换expect(true).toBe(true)为实际断言'
+        - '使用已生成的15个fixtures文件'
+        - '验证解析结果的content、metadata等字段'
+        - '测试错误场景(encrypted、corrupted等)'
+    
+    - action: '达到85%测试覆盖率'
+      priority: P0
+      owner: Dev  
+      time_estimate: '包含在上述时间内'
+      refs: ['parserService.ts']
+      rationale: '发布质量要求'
+  
+  optional:
+    - action: '手动创建encrypted.pdf'
+      priority: P1
+      owner: QA
+      time_estimate: '5分钟'
+      refs: ['tests/fixtures/pdf/']
+      rationale: '完善加密PDF测试（非阻塞）'
+    
+    - action: '手动创建old-format.doc'
+      priority: P2
+      owner: QA
+      time_estimate: '2分钟'
+      refs: ['tests/fixtures/docx/']
+      rationale: '完善旧格式Word测试（非阻塞）'
+    
+    - action: '修复其他测试套件失败'
+      priority: P1
+      owner: Dev
+      time_estimate: '半天'
+      refs: ['tests/unit/services/storageService.test.ts']
+      rationale: '提高整体测试健康度'
+    
+    - action: '添加性能测试'
+      priority: P1
+      owner: Dev
+      time_estimate: '半天'
+      refs: ['tests/performance/']
+      rationale: '验证性能要求（1MB<5s, 10MB<30s），fixtures已就绪'
+
+deployment_strategy:
+  recommendation: '接近可部署 - 完成测试实现后即可部署'
+  remaining_work:
+    - '修复测试模块路径（30分钟-1小时）'
+    - '实现测试用例（1-2天）'
+    - '验证测试覆盖率≥85%'
+  
+  ready_criteria:
+    - '✅ 代码实现完整'
+    - '✅ 测试fixtures准备 (88%)'
+    - '❌ 测试覆盖率≥85%'
+    - '❌ P0测试100%通过'
+    - '✅ Lint和类型检查通过'
+  
+  estimated_time_to_ready: '1-1.5天 (从1-2天进一步缩短，TEST-001已解决)'
+  
+  phases_when_ready:
+    phase1:
+      name: '内部测试'
+      duration: '2-3天'
+      criteria:
+        - '所有P0测试通过'
+        - '测试覆盖率≥85%'
+        - '性能基准达标'
+      file_size_limit: '20MB'
+    
+    phase2:
+      name: 'Beta发布'
+      duration: '1周'
+      user_count: '5-10用户'
+      criteria:
+        - '解析成功率≥90%'
+        - '平均解析时间≤10秒'
+        - '无Critical错误'
+      file_size_limit: '20MB'
+    
+    phase3:
+      name: '全面发布'
+      criteria:
+        - '解析成功率≥95%'
+        - 'Beta阶段无重大问题'
+      file_size_limit: '50MB'
+
+quality_gates:
+  code_complete:
+    status: PASS ✅
+    details:
+      - '✅ 所有AC已实现'
+      - '✅ 所有must_fix代码问题已解决'
+      - '✅ 代码质量优秀'
+  
+  fixtures_ready:
+    status: PASS ✅ (88%)
+    details:
+      - '✅ 15/17个P0 fixtures已生成'
+      - '✅ 自动生成脚本已创建'
+      - '✅ 可重复生成'
+      - '⏳ 2个文件需手动创建（非阻塞）'
+  
+  tests_complete:
+    status: FAIL ❌
+    details:
+      - '❌ 测试模块路径错误（阻塞）'
+      - '❌ P0测试未实现 (0/27)'
+      - '❌ 测试覆盖率0% (目标≥85%)'
+  
+  ready_for_staging:
+    status: BLOCKED ⚠️
+    reason: '测试实现工作未完成（预估1-2天）'
+  
+  ready_for_production:
+    status: BLOCKED ⚠️
+    reason: '测试实现工作未完成（预估1-2天）'
+
+next_steps:
+  immediate_actions:
+    - step: 1
+      action: '实现测试用例的实际断言逻辑'
+      owner: 'Dev'
+      deadline: '立即开始，1-1.5天完成'
+      priority: 'HIGH'
+      details:
+        - '替换13个TODO占位符测试为实际断言'
+        - '使用已生成的15个fixtures文件'
+        - '重点实现P0测试场景'
+    
+    - step: 2
+      action: '运行测试验证实际功能正确性'
+      owner: 'Dev'
+      deadline: '测试实现完成后'
+      priority: 'HIGH'
+      details:
+        - '确保所有测试使用真实fixtures'
+        - '验证解析结果准确性'
+        - '确认错误处理正确'
+    
+    - step: 3
+      action: '验证测试覆盖率≥85%'
+      owner: 'Dev'
+      deadline: '测试通过后'
+      priority: 'HIGH'
+    
+    - step: 4
+      action: 'QA最终审查，验证所有质量门禁'
+      owner: 'QA'
+      deadline: '覆盖率达标后'
+      priority: 'HIGH'
+
+references:
+  story_file: 'docs/stories/2.3-document-parsing.md'
+  risk_assessment: 'docs/qa/assessments/2.3-risk-20250104.md'
+  test_design: 'docs/qa/assessments/2.3-test-design-20250104.md'
+  fixtures_report: 'tests/fixtures/GENERATED_FILES.md'
+  fixtures_checklist: 'tests/fixtures/README.md'
+  fixture_generator: 'scripts/generate-test-fixtures.ts'
+  architecture: 'docs/architecture.md'
+  prd_epic: 'docs/prd/epic-2-document-management.md'
+
+notes: |
+  ## 第三次审查总结 (2025-01-05)
+  
+  **显著进展** 🎉:
+  - ✅ TEST-001已解决 - 测试模块路径问题修复完成
+  - ✅ 测试框架可正常运行 - 13/13测试通过
+  - ✅ Jest配置增强 - moduleNameMapper和路径映射
+  - ✅ 风险评分从72/100提升到80/100 (+8分)
+  - ✅ 预估完成时间从1-2天缩短到1-1.5天
+  
+  **当前状态**:
+  - **代码实现**: ⭐⭐⭐⭐⭐ 优秀 (95/100) ✅
+  - **测试准备**: ⭐⭐⭐⭐⭐ 优秀 (88%完成) ✅
+  - **测试基础设施**: ⭐⭐⭐⭐ 良好 (框架可运行) ✅
+  - **测试实现**: ⭐⭐ 占位符 (逻辑待实现) ⚠️
+  - **整体评分**: 80/100 (从75/100提升)
+  
+  **Gate状态**: CONCERNS (保持，质量持续改善中)
+  
+  **关键成就**:
+  1. ✅ 解决TEST-001 - 测试基础设施完全就绪
+  2. ✅ 所有代码问题已解决 - 无阻塞性问题
+  3. ✅ 测试可运行 - 13个测试框架通过
+  4. ✅ Fixtures就绪 - 15个文件可用
+  
+  **剩余工作** (仅1项):
+  1. 实现测试用例的实际断言逻辑（1-1.5天）
+     - 替换expect(true).toBe(true)为真实断言
+     - 使用已生成的15个fixtures文件
+     - 验证解析结果的准确性
+  
+  **关键差异（相比第二次审查）**:
+  - TEST-001状态: BLOCKING → RESOLVED ✅
+  - 测试可运行: false → true ✅
+  - 测试框架通过: 0/13 → 13/13 ✅
+  - 风险评分: 72/100 → 80/100 ✅
+  - 阻塞问题: 2个 → 1个 ✅
+  - 完成时间: 1-2天 → 1-1.5天 ✅
+  
+  **当前唯一阻塞项**:
+  OPS-003 (High): 测试用例逻辑未实现
+  - 13个测试框架已通过，但都是expect(true).toBe(true)占位符
+  - 需要实现实际的断言逻辑和fixtures文件读取
+  - 测试基础设施完全就绪，可立即开始实现
+  - 预估时间: 1-1.5天
+  
+  **建议**:
+  现在所有基础设施都已就绪：
+  - ✅ 代码实现完成
+  - ✅ 测试框架可运行
+  - ✅ Fixtures已生成
+  - ✅ 测试路径已修复
+  
+  可以立即开始实现测试用例的实际逻辑。重点：
+  1. 从P0测试场景开始（PDF基础解析、错误处理）
+  2. 使用已生成的fixtures文件（normal-adobe.pdf等）
+  3. 验证解析结果的content、metadata、错误类型
+  4. 确保测试覆盖率≥85%
+  
+  **下次复审**: 当测试用例实现完成并达到85%覆盖率后，进行最终质量验证和PASS评估。

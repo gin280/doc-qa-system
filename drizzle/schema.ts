@@ -18,8 +18,8 @@ export const users = pgTable('users', {
   avatarUrl: text('avatar_url'),
   authProvider: authProviderEnum('auth_provider').default('EMAIL').notNull(),
   status: userStatusEnum('status').default('active').notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull()
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
 }, (table) => ({
   emailIdx: index('users_email_idx').on(table.email)
 }))
@@ -36,8 +36,8 @@ export const documents = pgTable('documents', {
   chunksCount: integer('chunks_count').default(0).notNull(),
   contentLength: integer('content_length').default(0).notNull(),
   metadata: jsonb('metadata'),
-  uploadedAt: timestamp('uploaded_at').defaultNow().notNull(),
-  parsedAt: timestamp('parsed_at')
+  uploadedAt: timestamp('uploaded_at', { withTimezone: true }).defaultNow().notNull(),
+  parsedAt: timestamp('parsed_at', { withTimezone: true })
 }, (table) => ({
   userIdIdx: index('documents_user_id_idx').on(table.userId),
   statusIdx: index('documents_status_idx').on(table.status)
@@ -51,7 +51,7 @@ export const documentChunks = pgTable('document_chunks', {
   content: text('content').notNull(),
   embeddingId: text('embedding_id').notNull(),
   metadata: jsonb('metadata'),
-  createdAt: timestamp('created_at').defaultNow().notNull()
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
 }, (table) => ({
   documentIdIdx: index('chunks_document_id_idx').on(table.documentId),
   uniqueChunk: unique('unique_document_chunk').on(table.documentId, table.chunkIndex)
@@ -64,8 +64,8 @@ export const conversations = pgTable('conversations', {
   documentId: text('document_id').notNull().references(() => documents.id, { onDelete: 'cascade' }),
   title: text('title').notNull(),
   messageCount: integer('message_count').default(0).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull()
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
 }, (table) => ({
   userIdIdx: index('conversations_user_id_idx').on(table.userId),
   documentIdIdx: index('conversations_document_id_idx').on(table.documentId)
@@ -79,7 +79,7 @@ export const messages = pgTable('messages', {
   content: text('content').notNull(),
   citations: jsonb('citations'),
   tokenCount: integer('token_count').default(0).notNull(),
-  createdAt: timestamp('created_at').defaultNow().notNull()
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
 }, (table) => ({
   conversationIdIdx: index('messages_conversation_id_idx').on(table.conversationId)
 }))
@@ -93,7 +93,7 @@ export const citations = pgTable('citations', {
   pageNumber: integer('page_number'),
   quoteText: text('quote_text').notNull(),
   relevanceScore: integer('relevance_score').notNull(), // 存储为整数(乘以10000)
-  createdAt: timestamp('created_at').defaultNow().notNull()
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
 }, (table) => ({
   messageIdIdx: index('citations_message_id_idx').on(table.messageId)
 }))
@@ -105,8 +105,8 @@ export const userUsage = pgTable('user_usage', {
   documentCount: integer('document_count').default(0).notNull(),
   storageUsed: bigint('storage_used', { mode: 'number' }).default(0).notNull(),
   queryCount: integer('query_count').default(0).notNull(),
-  queryResetDate: timestamp('query_reset_date').defaultNow().notNull(),
-  updatedAt: timestamp('updated_at').defaultNow().notNull()
+  queryResetDate: timestamp('query_reset_date', { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull()
 })
 
 // Relations

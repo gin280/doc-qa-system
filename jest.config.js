@@ -10,9 +10,14 @@ const createJestConfig = nextJest({
 const customJestConfig = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testEnvironment: 'node',
+  roots: ['<rootDir>/src', '<rootDir>/drizzle', '<rootDir>/tests'],
+  modulePaths: ['<rootDir>'],
+  moduleDirectories: ['node_modules', '<rootDir>'],
   moduleNameMapper: {
     // CRITICAL: More specific patterns MUST come first!
-    // Map drizzle imports to actual location
+    // Map relative drizzle imports (for when @/ gets compiled to relative paths)
+    '^\\.\\./\\.\\./drizzle/(.*)$': '<rootDir>/drizzle/$1',
+    // Map @/drizzle to drizzle directory (for @/drizzle/schema)
     '^@/drizzle/(.*)$': '<rootDir>/drizzle/$1',
     // Map src imports
     '^@/(.*)$': '<rootDir>/src/$1',
