@@ -106,19 +106,22 @@ export default async function DashboardPage() {
               <UploadButton />
 
               {/* 智能问答 */}
-              <Card className="p-6 opacity-50 cursor-not-allowed">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2">
-                    <div className="h-12 w-12 rounded-lg bg-green-500/10 flex items-center justify-center">
-                      <MessageSquare className="h-6 w-6 text-green-600 dark:text-green-400" />
+              <Link href="/chat">
+                <Card className="p-6 hover:shadow-lg transition-all hover:border-primary cursor-pointer group">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <div className="h-12 w-12 rounded-lg bg-green-500/10 flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
+                        <MessageSquare className="h-6 w-6 text-green-600 dark:text-green-400" />
+                      </div>
+                      <h3 className="font-semibold text-foreground">智能问答</h3>
+                      <p className="text-sm text-muted-foreground">
+                        向文档提问，获取答案
+                      </p>
                     </div>
-                    <h3 className="font-semibold text-foreground">智能问答</h3>
-                    <p className="text-sm text-muted-foreground">
-                      即将推出
-                    </p>
+                    <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                   </div>
-                </div>
-              </Card>
+                </Card>
+              </Link>
             </div>
             
             {/* 用户详细信息卡片 */}

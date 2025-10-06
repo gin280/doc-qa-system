@@ -1,0 +1,28 @@
+# Gate YAML Block - 测试设计摘要
+# 粘贴到 docs/qa/gates/3.1-qa-interface-input.yml 的 test_design 部分
+
+test_design:
+  scenarios_total: 47
+  
+  by_level:
+    unit: 18      # 38% - Hook和组件逻辑
+    integration: 19  # 40% - 组件集成、API、性能、可访问性
+    e2e: 10       # 22% - 用户流程、响应式
+  
+  by_priority:
+    p0: 24  # 必须通过 - 核心功能、性能、可访问性
+    p1: 15  # 重要功能 - 搜索、新建对话、响应式
+    p2: 8   # 优化功能 - 动画、移动端优化
+  
+  coverage_gaps: []  # 所有AC都有测试覆盖
+  
+  risk_coverage:
+    PERF-001: "3.1-PERF-004 (100条消息<500ms)"
+    UX-001: "3.1-PERF-001 (输入<50ms), 3.1-PERF-006 (防抖)"
+    SEC-001: "3.1-UNIT-015/016 (消息渲染) + 手动安全测试"
+    REL-001: "3.1-INT-015 (30秒超时), 3.1-INT-023 (状态恢复)"
+    DATA-001: "3.1-E2E-006 (多条消息) + 需localStorage测试"
+
+# 详细测试设计: docs/qa/assessments/3.1-test-design-20250107.md
+# AC覆盖率: 100% (10/10个AC全覆盖)
+# 关键测试: 24个P0测试必须全部通过

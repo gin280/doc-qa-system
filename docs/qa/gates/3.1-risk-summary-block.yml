@@ -1,0 +1,34 @@
+# Gate YAML Block - 风险评估摘要
+# 粘贴到 docs/qa/gates/3.1-qa-interface-input.yml 的 risk_summary 部分
+
+risk_summary:
+  totals:
+    critical: 0    # 评分 9
+    high: 2        # 评分 6
+    medium: 3      # 评分 4
+    low: 7         # 评分 ≤3
+  
+  highest:
+    - id: PERF-001
+      score: 6
+      title: '消息列表渲染性能瓶颈(100条消息)'
+    - id: UX-001
+      score: 6
+      title: '实时输入防抖不当造成卡顿'
+  
+  recommendations:
+    must_fix:
+      - '实现消息列表虚拟滚动(react-window)'
+      - '优化输入框防抖(useTransition + RAF)'
+      - '添加API超时机制(AbortController 30秒)'
+      - '实现localStorage临时持久化防止刷新丢失'
+      - '验证XSS防护(禁用dangerouslySetInnerHTML)'
+    
+    monitor:
+      - '监控消息列表渲染时间(P95 < 500ms)'
+      - '监控输入响应时间(P95 < 50ms)'
+      - '监控API超时率(< 5%)'
+      - '监控localStorage容量错误'
+
+# 详细报告: docs/qa/assessments/3.1-risk-20250107.md
+# 整体风险评分: 72/100 (中等风险 - 可接受,需实施缓解措施)

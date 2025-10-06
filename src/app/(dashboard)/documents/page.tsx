@@ -9,7 +9,7 @@ import { DocumentPagination } from '@/components/documents/DocumentPagination'
 import { DocumentUploadModal } from '@/components/documents/DocumentUploadModal'
 import { Button } from '@/components/ui/button'
 import { useDocuments } from '@/hooks/useDocuments'
-import { Upload, ArrowLeft } from 'lucide-react'
+import { Upload, ArrowLeft, MessageSquare } from 'lucide-react'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 
 export default function DocumentsPage() {
@@ -83,6 +83,16 @@ export default function DocumentsPage() {
             {/* 右侧：操作按钮 */}
             <div className="flex items-center gap-2">
               <ThemeToggle />
+              <Link href="/chat">
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="hidden sm:inline">智能问答</span>
+                </Button>
+              </Link>
               <Button 
                 variant="default"
                 size="sm"
@@ -90,7 +100,7 @@ export default function DocumentsPage() {
                 className="gap-2"
               >
                 <Upload className="h-4 w-4" />
-                上传文档
+                <span className="hidden sm:inline">上传文档</span>
               </Button>
             </div>
           </div>
