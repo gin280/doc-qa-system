@@ -1,0 +1,93 @@
+# Risk Summary for Story 3.2 - RAG向量检索实现
+# Generated: 2025-01-08 by Quinn (测试架构师)
+# 
+# 使用说明：将此块复制到完整gate文件的risk_summary部分
+
+risk_summary:
+  totals:
+    critical: 2    # score 9
+    high: 4        # score 6
+    medium: 8      # score 4
+    low: 4         # score 2-3
+  
+  highest:
+    - id: PERF-001
+      score: 9
+      title: '检索质量不达标 - Top-5准确率可能低于85%目标'
+    
+    - id: SEC-002
+      score: 9
+      title: 'LLM API密钥泄露风险'
+  
+  by_category:
+    technical: 4
+    security: 2
+    performance: 4
+    data: 3
+    business: 2
+    operational: 3
+  
+  recommendations:
+    must_fix:
+      - action: '完成AC9人工质量评估（20个测试问题），确保Top-5准确率 > 85%'
+        refs: ['retrievalService.ts', 'pgvector.repository.ts']
+        risk_id: 'PERF-001'
+        
+      - action: '代码审查和Git history扫描，确认无API密钥泄露'
+        refs: ['queryVectorizer.ts', 'llmConfig']
+        risk_id: 'SEC-002'
+        
+      - action: '实现性能基准测试，验证pgvector查询延迟 < 200ms (P95)'
+        refs: ['pgvector.repository.ts']
+        risk_id: 'PERF-002'
+        
+      - action: '验证LLM API自动降级机制（多提供商支持）'
+        refs: ['queryVectorizer.ts', 'LLM Repository']
+        risk_id: 'TECH-001'
+    
+    should_fix:
+      - action: '在文档删除/更新API中集成缓存失效调用'
+        refs: ['API routes', 'queryCacheService.ts']
+        risk_id: 'DATA-001'
+        
+      - action: '实现Redis故障降级测试，验证无缓存模式工作正常'
+        refs: ['queryCacheService.ts', 'retrievalService.ts']
+        risk_id: 'OPS-001'
+    
+    monitor:
+      - metric: '检索延迟P95'
+        threshold: '> 500ms'
+        alert: '立即调查性能瓶颈'
+        
+      - metric: 'LLM API错误率'
+        threshold: '> 10%'
+        alert: '检查API状态和自动降级'
+        
+      - metric: '缓存命中率'
+        threshold: '< 30%'
+        alert: '调查缓存策略优化'
+        
+      - metric: 'API配额使用量'
+        threshold: '> 80%'
+        alert: '考虑限流或升级'
+  
+  acceptance_criteria:
+    must_pass:
+      - '人工质量评估Top-5准确率 >= 85%'
+      - '无API密钥泄露（代码审查+Git扫描）'
+      - 'pgvector查询延迟 < 500ms (P95)'
+      - 'LLM API故障自动降级测试通过'
+    
+    can_waive:
+      - '缓存命中率 20-30% (低于目标但可接受，有监控)'
+      - 'Redis故障场景（有降级无缓存模式）'
+      - '并行优化未达最佳（记录技术债，后续优化）'
+  
+  notes: |
+    核心风险集中在检索质量和外部依赖：
+    1. 检索质量直接影响产品可用性，必须通过人工评估验证
+    2. LLM API和Redis是关键外部依赖，需要降级策略和监控
+    3. pgvector性能在MVP阶段应足够，但需要为未来迁移做准备
+    4. 成本优化依赖缓存命中率，需要持续监控和调优
+    
+    详细风险分析: docs/qa/assessments/3.2-risk-20250108.md

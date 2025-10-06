@@ -14,3 +14,9 @@ export const llmConfig: LLMConfig = {
     model: process.env.ZHIPU_MODEL || 'glm-4'
   }
 }
+
+/**
+ * Embedding向量维度
+ * 智谱AI embedding-2 固定为 1024维
+ */
+export const EMBEDDING_DIMENSION = 1024

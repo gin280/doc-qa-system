@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { documentChunks } from '@/drizzle/schema'
+import { documentChunks, documents } from '@/drizzle/schema'
 import { sql, eq, and, inArray } from 'drizzle-orm'
 import type {
   IVectorRepository,
@@ -77,37 +77,120 @@ export class PgVectorRepository implements IVectorRepository {
     const { topK = 10, filter, minScore = 0 } = options
     const vectorString = `[${vector.join(',')}]`
 
-    // 构建基础查询
-    let query = db.select({
-      id: documentChunks.id,
-      // 余弦相似度: 1 - (a <=> b)
-      score: sql<number>`1 - (embedding <=> ${vectorString}::vector)`,
-      metadata: documentChunks.metadata
-    }).from(documentChunks)
+    // 调试日志
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[PgVectorRepository] Filter received:', filter)
+      console.log('[PgVectorRepository] Query vector stats:', {
+        length: vector.length,
+        first5: vector.slice(0, 5),
+        sum: vector.reduce((a, b) => a + b, 0),
+        avg: vector.reduce((a, b) => a + b, 0) / vector.length
+      })
+    }
 
-    // 应用过滤条件(根据metadata JSON字段)
-    if (filter) {
-      const conditions = Object.entries(filter).map(([key, value]) => 
-        sql`${documentChunks.metadata}->>'${sql.raw(key)}' = ${value}`
+    // 构建WHERE条件
+    const conditions: any[] = []
+    
+    // 处理特殊过滤条件：documentId 和 userId
+    if (filter?.documentId) {
+      conditions.push(eq(documentChunks.documentId, filter.documentId))
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[PgVectorRepository] Added documentId condition')
+      }
+    }
+    
+    if (filter?.userId) {
+      // 通过documents表关联验证用户权限
+      conditions.push(
+        sql`EXISTS (
+          SELECT 1 FROM ${documents} 
+          WHERE ${documents.id} = ${documentChunks.documentId}
+          AND ${documents.userId} = ${filter.userId}
+        )`
       )
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions)) as any
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[PgVectorRepository] Added userId EXISTS condition')
       }
     }
 
-    // 按相似度排序并限制返回数量
-    const results = await query
-      .orderBy(sql`embedding <=> ${vectorString}::vector`)
-      .limit(topK)
+    // 处理其他metadata过滤条件
+    if (filter) {
+      const metadataFilters = Object.entries(filter)
+        .filter(([key]) => key !== 'documentId' && key !== 'userId')
+        .map(([key, value]) => 
+          sql`${documentChunks.metadata}->>'${sql.raw(key)}' = ${value}`
+        )
+      
+      if (process.env.NODE_ENV === 'development' && metadataFilters.length > 0) {
+        console.log('[PgVectorRepository] Added metadata filters:', metadataFilters.length)
+      }
+      
+      conditions.push(...metadataFilters)
+    }
 
-    // 过滤低于最小分数的结果
-    return results
-      .filter(item => item.score >= minScore)
-      .map(item => ({
-        id: item.id,
-        score: item.score,
-        metadata: item.metadata as T
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[PgVectorRepository] Total conditions before query:', conditions.length)
+    }
+
+    try {
+      // 构建查询，返回完整的chunk信息
+      const results = await db.select({
+        id: documentChunks.id,
+        documentId: documentChunks.documentId,
+        chunkIndex: documentChunks.chunkIndex,
+        content: documentChunks.content,
+        metadata: documentChunks.metadata,
+        // 计算余弦相似度分数(0-1)
+        // pgvector的<=>操作符返回余弦距离，相似度 = 1 - 距离
+        score: sql<number>`1 - (embedding <=> ${vectorString}::vector)`
+      })
+      .from(documentChunks)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      // 按相似度降序排序
+      .orderBy(sql`embedding <=> ${vectorString}::vector`)
+      // 多取一些结果，用于阈值过滤后仍有足够结果
+      .limit(topK * 2)
+
+      // 调试日志
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[PgVectorRepository] Search results:', {
+          totalResults: results.length,
+          minScore,
+          topK,
+          scores: results.map(r => r.score).slice(0, 5)
+        })
+      }
+
+      // 过滤低于阈值的结果
+      const filtered = results.filter(r => r.score >= minScore)
+
+      // 调试日志
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[PgVectorRepository] After filtering:', {
+          filteredCount: filtered.length,
+          topScores: filtered.map(r => r.score).slice(0, 3)
+        })
+      }
+
+      // 取Top-K
+      const topResults = filtered.slice(0, topK)
+
+      // 格式化为标准返回结构，包含完整的chunk信息
+      return topResults.map(r => ({
+        id: r.id,
+        score: r.score,
+        metadata: {
+          documentId: r.documentId,
+          chunkIndex: r.chunkIndex,
+          content: r.content,
+          ...(r.metadata as Record<string, any>)
+        } as T
       }))
+
+    } catch (error) {
+      console.error('[PgVectorRepository] Vector search failed:', error)
+      throw new Error('VECTOR_SEARCH_ERROR')
+    }
   }
 
   async delete(id: string): Promise<void> {

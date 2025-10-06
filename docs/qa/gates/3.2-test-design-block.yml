@@ -1,0 +1,256 @@
+# Test Design Summary for Story 3.2 - RAG向量检索实现
+# Generated: 2025-01-08 by Quinn (测试架构师)
+#
+# 使用说明：将此块复制到完整gate文件的test_design部分
+
+test_design:
+  scenarios_total: 67
+  
+  by_level:
+    unit: 32        # 48% - 服务层逻辑验证
+    integration: 25 # 37% - API和组件集成
+    e2e: 10         # 15% - 端到端和人工评估
+  
+  by_priority:
+    p0: 28  # 42% - 核心功能和关键风险
+    p1: 24  # 36% - 重要功能和错误处理
+    p2: 15  # 22% - 边界条件和优化验证
+  
+  coverage_by_ac:
+    ac1_query_vectorization:
+      scenarios: 8
+      levels: ['unit']
+      priority: 'P0'
+      coverage: '完整覆盖向量化逻辑和错误处理'
+    
+    ac2_vector_search:
+      scenarios: 8
+      levels: ['unit']
+      priority: 'P0'
+      coverage: '完整覆盖pgvector检索和过滤'
+    
+    ac3_retrieval_service:
+      scenarios: 8
+      levels: ['unit', 'integration']
+      priority: 'P0'
+      coverage: '完整覆盖检索编排和权限验证'
+    
+    ac4_type_definitions:
+      scenarios: 0
+      note: '类型定义通过TypeScript编译验证'
+    
+    ac5_redis_cache:
+      scenarios: 8
+      levels: ['unit', 'integration']
+      priority: 'P0/P1'
+      coverage: '完整覆盖缓存读写和降级'
+    
+    ac6_api_endpoint:
+      scenarios: 15
+      levels: ['integration', 'e2e']
+      priority: 'P0'
+      coverage: '完整覆盖API流程、错误和安全'
+    
+    ac7_performance:
+      scenarios: 10
+      levels: ['performance']
+      priority: 'P0/P1'
+      coverage: '延迟、并发、负载全方位测试'
+    
+    ac8_error_handling:
+      scenarios: 8
+      levels: ['integration']
+      priority: 'P0/P1'
+      coverage: '所有错误类型和降级策略'
+    
+    ac9_quality_validation:
+      scenarios: 7
+      levels: ['e2e', 'manual']
+      priority: 'P0'
+      coverage: '人工评估 + 自动化回归'
+    
+    ac10_monitoring:
+      scenarios: 0
+      note: '监控通过日志和指标验证（非功能测试）'
+  
+  special_test_categories:
+    performance:
+      count: 10
+      metrics:
+        - '向量化延迟 < 300ms (P95)'
+        - '检索延迟 < 200ms (P95)'
+        - '端到端延迟 < 500ms (P95)'
+        - '缓存命中率 > 30%'
+      load_tests:
+        - '1K vectors baseline'
+        - '10K vectors growth'
+        - '100K vectors scale'
+    
+    fault_tolerance:
+      count: 8
+      scenarios:
+        - 'LLM API完全不可用'
+        - 'Redis完全不可用'
+        - 'pgvector查询超时'
+        - '数据库连接池耗尽'
+      validation: '所有故障场景正确降级'
+    
+    security:
+      count: 5
+      focus:
+        - 'API密钥保护（响应、日志、错误）'
+        - '查询内容脱敏'
+        - '跨用户访问隔离'
+      validation: '无API密钥泄露，权限正确'
+    
+    quality_assessment:
+      type: 'manual'
+      questions: 20
+      documents: 3
+      target: 'Top-5准确率 >= 85%'
+      question_types:
+        - '事实性问题'
+        - '操作性问题'
+        - '比较性问题'
+        - '解释性问题'
+  
+  execution_phases:
+    phase1_foundation:
+      days: '1-2'
+      focus: '单元测试 - 核心逻辑验证'
+      scenarios: 32
+      exit_criteria: '所有单元测试通过，覆盖率 > 80%'
+    
+    phase2_integration:
+      days: '3-4'
+      focus: 'API端点和组件集成'
+      scenarios: 25
+      exit_criteria: '所有集成测试通过，P95 < 500ms'
+    
+    phase3_quality_performance:
+      days: '5'
+      focus: '质量评估和性能验证'
+      scenarios: 17
+      exit_criteria: '准确率 >= 85%, 性能达标'
+    
+    phase4_resilience:
+      days: '6'
+      focus: '故障容错和安全测试'
+      scenarios: 13
+      exit_criteria: '所有故障降级，无安全漏洞'
+    
+    phase5_e2e_smoke:
+      days: '7'
+      focus: '端到端和生产就绪'
+      scenarios: 10
+      exit_criteria: '所有E2E通过，准备上线'
+  
+  estimated_effort:
+    automated_execution: '~8 hours'
+    manual_execution: '~4 hours'
+    total_setup: '~2 days'
+    maintenance: '~1 hour/week'
+  
+  critical_tests_must_pass:
+    - id: '3.2-MANUAL-001'
+      name: '人工质量评估'
+      target: 'Top-5准确率 >= 85%'
+      risk: 'PERF-001'
+    
+    - id: '3.2-SEC-001'
+      name: 'API密钥响应保护'
+      target: '响应中无API密钥'
+      risk: 'SEC-002'
+    
+    - id: '3.2-SEC-002'
+      name: 'API密钥日志保护'
+      target: '日志中无API密钥'
+      risk: 'SEC-002'
+    
+    - id: '3.2-PERF-003'
+      name: '端到端延迟验证'
+      target: 'P95 < 500ms'
+      risk: 'PERF-002'
+    
+    - id: '3.2-INT-006'
+      name: '跨用户访问隔离'
+      target: '用户A无法访问用户B文档'
+      risk: 'Security'
+    
+    - id: '3.2-FAULT-001'
+      name: 'LLM API故障降级'
+      target: '返回503，不崩溃'
+      risk: 'TECH-001'
+    
+    - id: '3.2-FAULT-004'
+      name: 'Redis故障降级'
+      target: '降级无缓存模式'
+      risk: 'OPS-001'
+  
+  coverage_gaps:
+    # 基于测试设计，当前无明显覆盖缺口
+    # 所有AC都有对应测试场景
+    []
+  
+  test_data_requirements:
+    documents:
+      - type: 'technical'
+        size: '~50 pages'
+        format: 'PDF'
+        topics: ['React', 'Hooks', 'Components']
+      
+      - type: 'business'
+        size: '~30 pages'
+        format: 'DOCX'
+        topics: ['Requirements', 'Features', 'Users']
+      
+      - type: 'academic'
+        size: '~20 pages'
+        format: 'PDF'
+        topics: ['Research', 'Methodology', 'Results']
+    
+    test_users:
+      - role: 'standard_user'
+        documents: 3
+        queries: 20
+      
+      - role: 'other_user'
+        documents: 1
+        purpose: '跨用户访问测试'
+    
+    fixtures:
+      - 'test-questions.json (20个问题)'
+      - 'test-vectors.json (模拟embedding)'
+      - 'test-chunks.json (模拟检索结果)'
+  
+  recommended_execution_order:
+    - phase: 'Unit Tests First'
+      reason: '快速验证逻辑，发现基础问题'
+    
+    - phase: 'Integration Tests Second'
+      reason: '验证API集成和数据流'
+    
+    - phase: 'Quality Assessment Third'
+      reason: '确保检索质量达标（关键指标）'
+    
+    - phase: 'Performance Tests Fourth'
+      reason: '验证性能目标和负载能力'
+    
+    - phase: 'Fault Tolerance Fifth'
+      reason: '验证系统健壮性'
+    
+    - phase: 'E2E Last'
+      reason: '最终端到端验证'
+  
+  notes: |
+    测试策略聚焦3个核心目标：
+    1. 检索质量 >= 85% (PERF-001风险缓解)
+    2. 性能P95 < 500ms (PERF-002风险缓解)
+    3. 安全和故障容错 (SEC-002, TECH-001, OPS-001风险缓解)
+    
+    关键成功因素：
+    - 人工质量评估必须通过（占用~4小时）
+    - 性能基准测试建立基线
+    - 所有P0测试必须通过才能上线
+    
+    详细测试设计: docs/qa/assessments/3.2-test-design-20250108.md

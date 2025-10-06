@@ -1,0 +1,322 @@
+# Quality Gate Decision for Story 3.2
+# Generated: 2025-01-08 by Quinn (Test Architect)
+# Schema Version: 1
+
+schema: 1
+story: "3.2"
+story_title: "RAG向量检索实现"
+gate: CONCERNS
+status_reason: "核心实现质量良好,但测试覆盖不完整,缺少人工质量评估和性能基准验证,需补充测试后再上线。"
+reviewer: "Quinn (Test Architect)"
+updated: "2025-01-08T10:30:00Z"
+
+# Gate决策理由
+gate_rationale: |
+  代码实现质量高,架构设计优秀,错误处理完善,核心RAG逻辑已正确实现。
+  
+  主要问题:
+  1. 单元测试失败(3个) - 维度mock不匹配,必须修复
+  2. 缺少人工质量评估 - 无法确认检索准确率达标,阻止上线
+  3. 缺少集成测试实现 - 无法验证完整流程和降级逻辑
+  4. 缺少性能基准测试 - 无法确认P95延迟 < 500ms目标
+  
+  这些都是可以在1.5-2天内修复的问题,修复后质量可达到上线标准。
+
+waiver: 
+  active: false
+
+# 需要修复的关键问题
+top_issues:
+  - id: TEST-001
+    severity: high
+    finding: "3个单元测试失败 - queryVectorizer测试mock使用1536维,但代码期望1024维"
+    suggested_action: "修复测试mock使用EMBEDDING_DIMENSION常量而不是硬编码维度"
+    refs:
+      - "tests/unit/services/rag/queryVectorizer.test.ts:38"
+      - "tests/unit/services/rag/queryVectorizer.test.ts:67"
+      - "tests/unit/services/rag/queryVectorizer.test.ts:126"
+    
+  - id: QUALITY-001
+    severity: high
+    finding: "缺少AC9要求的人工质量评估 - 无法验证检索准确率是否达到85%目标"
+    suggested_action: "执行20个测试问题的人工评估,记录Top-5准确率到docs/qa/"
+    refs:
+      - "docs/stories/3.2-rag-vector-retrieval.md (AC9)"
+    
+  - id: TEST-002
+    severity: high
+    finding: "集成测试文件存在但未实现 - 无法验证完整RAG流程"
+    suggested_action: "实现至少P0集成测试场景(完整流程、缓存、错误处理、权限)"
+    refs:
+      - "tests/integration/api/rag-retrieval.test.ts"
+    
+  - id: PERF-001
+    severity: medium
+    finding: "缺少性能基准测试 - 无法验证P95延迟 < 500ms目标"
+    suggested_action: "创建并执行性能基准测试,记录P50/P95/P99延迟基线"
+    refs:
+      - "tests/performance/rag-retrieval.benchmark.ts (需创建)"
+    
+  - id: TEST-003
+    severity: medium
+    finding: "缺少retrievalService和pgvector.search的单元测试"
+    suggested_action: "补充核心检索逻辑的单元测试覆盖"
+    refs:
+      - "src/services/rag/retrievalService.ts"
+      - "src/infrastructure/vector/pgvector.repository.ts"
+    
+  - id: SEC-001
+    severity: medium
+    finding: "日志未实现AC10要求的查询内容脱敏(仅记录前50字符)"
+    suggested_action: "在日志中添加查询内容截断逻辑"
+    refs:
+      - "src/services/rag/retrievalService.ts:176-189"
+    
+  - id: DOC-001
+    severity: low
+    finding: "Story文档与实际实现不一致 - 使用1024维(智谱AI)而非1536维"
+    suggested_action: "更新Story文档说明实际embedding模型和维度,更新minScore=0.3的选择理由"
+    refs:
+      - "docs/stories/3.2-rag-vector-retrieval.md"
+
+# 风险汇总 (from docs/qa/assessments/3.2-risk-20250108.md)
+risk_summary:
+  totals:
+    critical: 2  # PERF-001检索质量, SEC-002 API密钥
+    high: 4      # PERF-002 pgvector性能, TECH-001 LLM API, DATA-001缓存一致性, OPS-001 Redis故障
+    medium: 8    # TECH-002维度, PERF-003并行, DATA-002缓存冲突等
+    low: 4       # 各类低影响风险
+  
+  highest:
+    - id: PERF-001
+      score: 9
+      title: "检索质量不达标 - Top-5准确率可能低于85%目标"
+      mitigation: "执行AC9人工质量评估,如不达标则调优minScore或分块策略"
+    
+    - id: SEC-002
+      score: 9
+      title: "LLM API密钥泄露风险"
+      mitigation: "已完成代码审查,未发现泄露。建议补充Git history扫描。"
+  
+  recommendations:
+    must_fix:
+      - action: "完成AC9人工质量评估,确保Top-5准确率 >= 85%"
+        refs: ["retrievalService.ts", "pgvector.repository.ts"]
+        risk_id: "PERF-001"
+      
+      - action: "执行性能基准测试,验证P95延迟 < 500ms"
+        refs: ["pgvector.repository.ts"]
+        risk_id: "PERF-002"
+      
+      - action: "实现集成测试验证降级逻辑(LLM API失败、Redis故障)"
+        refs: ["queryVectorizer.ts", "queryCacheService.ts"]
+        risk_ids: ["TECH-001", "OPS-001"]
+    
+    monitor:
+      - metric: "检索延迟P95"
+        threshold: "> 500ms"
+        alert: "立即调查性能瓶颈"
+      
+      - metric: "LLM API错误率"
+        threshold: "> 10%"
+        alert: "检查API状态和自动降级"
+      
+      - metric: "缓存命中率"
+        threshold: "< 30%"
+        alert: "调查缓存策略优化"
+
+# 测试设计汇总 (from docs/qa/assessments/3.2-test-design-20250108.md)
+test_design:
+  scenarios_total: 67
+  
+  by_level:
+    unit: 32        # 48%
+    integration: 25 # 37%
+    e2e: 10         # 15%
+  
+  by_priority:
+    p0: 28  # 42%
+    p1: 24  # 36%
+    p2: 15  # 22%
+  
+  coverage_gaps:
+    - ac: "AC9"
+      gap: "人工质量评估未执行"
+      impact: "无法确认检索准确率达标"
+      priority: "P0"
+    
+    - ac: "AC7"
+      gap: "性能基准测试未执行"
+      impact: "无法确认性能目标达成"
+      priority: "P0"
+    
+    - ac: "AC3, AC6"
+      gap: "集成测试未实现"
+      impact: "完整流程和降级逻辑未验证"
+      priority: "P0"
+  
+  test_status:
+    unit_tests:
+      total: 21
+      passed: 18
+      failed: 3
+      coverage: "~70% (估算,缺少核心服务测试)"
+    
+    integration_tests:
+      implemented: 0
+      planned: 25
+      status: "未开始"
+    
+    manual_tests:
+      quality_assessment:
+        status: "未执行"
+        required: "20个测试问题,目标准确率 >= 85%"
+      
+      performance_benchmarks:
+        status: "未执行"
+        required: "P95延迟 < 500ms验证"
+
+# NFR验证结果
+nfr_validation:
+  _assessed: ["功能完整性", "可靠性", "可维护性", "安全性", "性能"]
+  
+  functionality:
+    status: PASS
+    notes: "所有10个AC的功能需求已实现,类型定义、服务、缓存、API端点全部到位"
+  
+  reliability:
+    status: CONCERNS
+    notes: "Redis和LLM API降级策略已实现,但缺少集成测试验证降级逻辑是否正常工作"
+  
+  maintainability:
+    status: PASS
+    notes: "代码结构清晰,注释完整,类型安全。单元测试覆盖主要服务(虽有缺口)。"
+  
+  security:
+    status: CONCERNS
+    notes: "API密钥保护基本到位,但查询内容日志需要脱敏,缺少安全测试验证"
+  
+  performance:
+    status: CONCERNS
+    notes: "理论设计符合性能目标,并行优化已实现,但缺少实际性能验证(无基线数据)"
+
+# 证据和可追溯性
+evidence:
+  code_reviewed: true
+  tests_reviewed: true
+  tests_passed: 18
+  tests_failed: 3
+  architecture_review: true
+  
+  risks_identified: 18
+  risks_critical: 2
+  risks_high: 4
+  
+  trace:
+    ac_covered: [1, 2, 3, 4, 5, 6, 7, 8, 10]  # 功能已实现
+    ac_gaps: [9]  # AC9人工质量评估未完成
+    ac_partial: [7]  # AC7性能优化已实现但未验证
+  
+  documentation:
+    risk_profile: "docs/qa/assessments/3.2-risk-20250108.md"
+    test_design: "docs/qa/assessments/3.2-test-design-20250108.md"
+    qa_results: "docs/stories/3.2-rag-vector-retrieval.md#qa-results"
+
+# 质量评分
+quality_score: 70
+# 计算方法:
+# 100 - (20 × 0 FAILs) - (10 × 5 CONCERNS) = 50
+# + 20 (代码质量优秀加分)
+# = 70/100
+
+# 门限过期时间(可选)
+expires: "2025-01-15T00:00:00Z"  # 1周内需要重新审查
+
+# 立即行动建议
+recommendations:
+  immediate:  # 必须在下次审查前完成
+    - action: "修复3个失败的单元测试"
+      effort: "30分钟"
+      priority: "P0"
+      refs: ["tests/unit/services/rag/queryVectorizer.test.ts"]
+    
+    - action: "执行人工质量评估(20个测试问题)"
+      effort: "4小时"
+      priority: "P0"
+      refs: ["AC9", "PERF-001风险"]
+    
+    - action: "实现P0集成测试场景"
+      effort: "1天"
+      priority: "P0"
+      refs: ["tests/integration/api/rag-retrieval.test.ts"]
+    
+    - action: "创建并执行性能基准测试"
+      effort: "2小时"
+      priority: "P0"
+      refs: ["AC7", "PERF-002风险"]
+  
+  future:  # 质量提升,可在后续迭代处理
+    - action: "补充retrievalService和pgvector单元测试"
+      effort: "4小时"
+      priority: "P1"
+      refs: ["src/services/rag/retrievalService.ts", "src/infrastructure/vector/pgvector.repository.ts"]
+    
+    - action: "实现查询内容日志脱敏"
+      effort: "1小时"
+      priority: "P1"
+      refs: ["src/services/rag/retrievalService.ts:176-189"]
+    
+    - action: "更新Story文档与实际实现一致"
+      effort: "30分钟"
+      priority: "P2"
+      refs: ["docs/stories/3.2-rag-vector-retrieval.md"]
+    
+    - action: "执行Git history扫描验证无API密钥泄露"
+      effort: "30分钟"
+      priority: "P1"
+      refs: ["SEC-002风险"]
+
+# 下次审查重点
+next_review_focus:
+  - "验证所有单元测试通过(21/21)"
+  - "审查人工质量评估结果 - Top-5准确率是否 >= 85%"
+  - "审查性能测试结果 - P95延迟是否 < 500ms"
+  - "验证集成测试覆盖P0场景(完整流程、缓存、错误、权限)"
+  - "如果质量评估或性能不达标,需要调优后重新测试"
+
+# 审查历史 (append-only)
+history:
+  - at: "2025-01-08T10:30:00Z"
+    gate: CONCERNS
+    reviewer: "Quinn (Test Architect)"
+    note: "初次审查 - 代码质量优秀,但测试覆盖不完整,缺少人工质量评估和性能验证"
+    changes_requested: 4
+    estimated_effort: "1.5-2天"
+
+# QA团队备注
+notes: |
+  这是一个高质量的初次实现,核心逻辑正确,架构设计优秀。
+  
+  代码实现亮点:
+  - 完整的TypeScript类型定义
+  - 自定义错误类,错误分类清晰
+  - Redis缓存降级策略优雅
+  - 并行优化减少延迟
+  - 代码可读性高,易于维护
+  
+  主要问题是测试覆盖不完整,缺少关键验证步骤:
+  - 单元测试失败(快速修复)
+  - 人工质量评估未完成(4小时工作量,最高优先级)
+  - 集成测试未实现(1天工作量)
+  - 性能基准测试未执行(2小时工作量)
+  
+  这些都是可以在1.5-2天内修复的问题。修复后质量可达到上线标准。
+  
+  建议Dev团队:
+  1. 先修复单元测试(30分钟)
+  2. 实现集成测试框架(优先P0场景)
+  3. 与QA协作完成人工质量评估
+  4. 执行性能基准测试建立基线
+  5. 完成上述步骤后申请重新审查
+  
+  预计下次审查后gate状态: PASS (如果质量评估和性能达标)
