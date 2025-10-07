@@ -29,6 +29,7 @@ export function ChatContainer({ initialDocumentId }: Props) {
   const {
     messages,
     isLoading,
+    // isLoadingHistory, // 旧版本不需要
     error,
     sendMessage,
     retryMessage,

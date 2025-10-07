@@ -1,13 +1,14 @@
 /**
  * Chat Page - 问答主页面
  * Story 3.1: 问答界面与输入处理
+ * Story 3.5: 对话历史管理
  */
 
 import { Suspense } from 'react'
 import { Metadata } from 'next'
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { ChatContainer } from '@/components/chat/ChatContainer'
+import { ChatWithHistory } from '@/components/chat/ChatWithHistory'
 import { Loader2 } from 'lucide-react'
 
 export const metadata: Metadata = {
@@ -38,7 +39,7 @@ async function ChatPageContent({
   searchParams: { docId?: string }
 }) {
   return (
-    <ChatContainer initialDocumentId={searchParams.docId} />
+    <ChatWithHistory initialDocumentId={searchParams.docId} />
   )
 }
 

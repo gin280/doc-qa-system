@@ -2,6 +2,7 @@
  * useChat Hook - 对话状态管理
  * Story 3.1: 问答界面与输入处理 ✅
  * Story 3.3: LLM回答生成与流式输出 ✅
+ * Story 3.5: 对话历史管理 ✅
  */
 
 import { useState, useCallback } from 'react'
@@ -24,10 +25,12 @@ export interface Message {
 export interface UseChatReturn {
   messages: Message[]
   isLoading: boolean
+  isLoadingHistory: boolean
   error: string | null
   sendMessage: (question: string) => Promise<void>
   retryMessage: (messageId: string) => void
   newConversation: () => void
+  loadConversation: (conversationId: string) => Promise<void>
   conversationId: string | null
 }
 
@@ -41,6 +44,7 @@ export function useChat(documentId?: string): UseChatReturn {
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   /**
@@ -197,13 +201,57 @@ export function useChat(documentId?: string): UseChatReturn {
     setIsLoading(false)
   }, [])
 
+  /**
+   * 加载历史对话
+   * Story 3.5: AC6 - 继续对话功能
+   * 
+   * 注意：使用独立的 isLoadingHistory 状态，避免显示"AI思考中"
+   */
+  const loadConversation = useCallback(async (convId: string) => {
+    setIsLoadingHistory(true)
+    setError(null)
+    
+    try {
+      const res = await fetch(`/api/conversations/${convId}`)
+      
+      if (!res.ok) {
+        if (res.status === 404) {
+          throw new Error('对话不存在或已删除')
+        }
+        throw new Error('加载对话失败')
+      }
+
+      const data = await res.json()
+      
+      // 转换消息格式
+      const loadedMessages: Message[] = data.messages.map((msg: any) => ({
+        id: msg.id,
+        role: msg.role.toLowerCase() as 'user' | 'assistant',
+        content: msg.content,
+        timestamp: new Date(msg.createdAt),
+        status: 'success' as const
+      }))
+
+      setConversationId(convId)
+      setMessages(loadedMessages)
+    } catch (err: any) {
+      console.error('Load conversation error:', err)
+      const errorMessage = err.message || '加载对话失败'
+      setError(errorMessage)
+    } finally {
+      setIsLoadingHistory(false)
+    }
+  }, [])
+
   return {
     messages,
     isLoading,
+    isLoadingHistory,
     error,
     sendMessage,
     retryMessage,
     newConversation,
+    loadConversation,
     conversationId
   }
 }
