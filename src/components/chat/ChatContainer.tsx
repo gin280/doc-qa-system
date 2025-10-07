@@ -11,7 +11,7 @@ import { DocumentSelector } from './DocumentSelector'
 import { ChatMessageList } from './ChatMessageList'
 import { ChatInput } from './ChatInput'
 import { Button } from '@/components/ui/button'
-import { PlusCircle, FileText, ArrowLeft, Home } from 'lucide-react'
+import { PlusCircle, FileText, Home } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 

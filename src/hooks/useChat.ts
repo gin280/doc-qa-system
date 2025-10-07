@@ -1,6 +1,7 @@
 /**
  * useChat Hook - 对话状态管理
- * Story 3.1: 问答界面与输入处理
+ * Story 3.1: 问答界面与输入处理 ✅
+ * Story 3.3: LLM回答生成与流式输出 ✅
  */
 
 import { useState, useCallback } from 'react'
@@ -108,19 +109,54 @@ export function useChat(documentId?: string): UseChatReturn {
         }
       }
 
-      // Story 3.3将处理流式响应
-      // 本Story仅验证API调用成功
-      const data = await response.json()
+      // Story 3.3: 处理流式响应
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
 
-      // 暂时添加占位回答
+      if (!reader) {
+        throw new Error('无法读取响应流')
+      }
+
+      // 从响应头获取conversationId
+      const newConvId = response.headers.get('X-Conversation-Id')
+      if (newConvId) {
+        setConversationId(newConvId)
+      }
+
+      // 创建助手消息（初始为空）
+      const assistantMessageId = uuidv4()
       const assistantMessage: Message = {
-        id: uuidv4(),
+        id: assistantMessageId,
         role: 'assistant',
-        content: '回答生成功能将在Story 3.3实现',
+        content: '',
         timestamp: new Date(),
-        status: 'success'
+        status: 'pending'
       }
       setMessages(prev => [...prev, assistantMessage])
+
+      // 读取流式响应
+      let fullContent = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value, { stream: true })
+        fullContent += chunk
+
+        // 实时更新助手消息内容
+        setMessages(prev => prev.map(msg =>
+          msg.id === assistantMessageId
+            ? { ...msg, content: fullContent }
+            : msg
+        ))
+      }
+
+      // 标记消息为成功
+      setMessages(prev => prev.map(msg =>
+        msg.id === assistantMessageId
+          ? { ...msg, status: 'success' as const }
+          : msg
+      ))
 
     } catch (err: any) {
       console.error('Send message error:', err)

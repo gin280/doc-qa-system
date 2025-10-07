@@ -85,13 +85,11 @@ export class ErrorBoundary extends Component<Props, State> {
 interface PreviewErrorBoundaryProps {
   children: ReactNode
   onDownload?: () => void
-  documentName?: string
 }
 
 export function PreviewErrorBoundary({ 
   children, 
-  onDownload,
-  documentName 
+  onDownload
 }: PreviewErrorBoundaryProps) {
   return (
     <ErrorBoundary

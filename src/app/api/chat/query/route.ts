@@ -1,8 +1,8 @@
 /**
  * Chat Query API - 问答查询端点
- * Story 3.1: 问答界面与输入处理
+ * Story 3.1: 问答界面与输入处理 ✅
  * Story 3.2: RAG向量检索实现 ✅
- * Story 3.3: LLM回答生成（待实现）
+ * Story 3.3: LLM回答生成与流式输出 ✅
  */
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -10,9 +10,12 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { documents } from '@/drizzle/schema'
 import { eq, and } from 'drizzle-orm'
-import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { retrievalService, RetrievalError } from '@/services/rag/retrievalService'
 import { QueryVectorizationError } from '@/services/rag/queryVectorizer'
+import { answerService } from '@/services/rag/answerService'
+import { conversationService } from '@/services/chat/conversationService'
+import { usageService } from '@/services/user/usageService'
 
 /**
  * POST /api/chat/query
@@ -128,14 +131,25 @@ export async function POST(req: NextRequest) {
     }
 
     // ============================================
+    // Story 3.3: 用户限额检查 ✅
+    // ============================================
+    const quotaCheck = await usageService.checkQuotaLimit(session.user.id, 100) // 日限额100次
+    if (!quotaCheck.allowed) {
+      return NextResponse.json(
+        { error: '您的查询次数已达今日上限，请明天再试' },
+        { status: 429 }
+      )
+    }
+
+    // ============================================
     // Story 3.2: RAG向量检索 ✅
     // ============================================
-    
     const retrievalStartTime = Date.now()
     
+    let retrieval
     try {
       // 执行RAG检索
-      const retrieval = await retrievalService.retrieveContext(
+      retrieval = await retrievalService.retrieveContext(
         trimmedQuestion,
         documentId,
         session.user.id,
@@ -145,35 +159,165 @@ export async function POST(req: NextRequest) {
           useCache: true
         }
       )
-
-      const totalTime = Date.now() - retrievalStartTime
-
-      // 返回检索结果（临时格式，Story 3.3将改为流式LLM响应）
-      return NextResponse.json({
-        success: true,
-        conversationId: conversationId || 'new',
-        retrieval: {
-          chunks: retrieval.chunks.map(chunk => ({
-            id: chunk.id,
-            content: chunk.content,
-            score: chunk.score,
-            chunkIndex: chunk.chunkIndex,
-            metadata: chunk.metadata
-          })),
-          totalFound: retrieval.totalFound,
-          cached: retrieval.cached,
-          retrievalTime: retrieval.retrievalTime
-        },
-        message: 'RAG检索完成。LLM回答生成将在Story 3.3实现。',
-        debug: process.env.NODE_ENV === 'development' ? {
-          totalTime: `${totalTime}ms`,
-          documentTitle: document.filename
-        } : undefined
-      })
     } catch (retrievalError) {
       // 处理检索特定错误
       return handleRetrievalError(retrievalError)
     }
+
+    // 检查检索结果
+    if (retrieval.chunks.length === 0) {
+      return NextResponse.json(
+        {
+          error: '未找到相关内容',
+          suggestion: '请尝试换个问法或上传更多相关文档'
+        },
+        { status: 200 }
+      )
+    }
+
+    // ============================================
+    // Story 3.3: 创建或获取对话 ✅
+    // ============================================
+    let currentConversationId = conversationId
+    
+    // 如果没有提供conversationId，创建新对话
+    if (!currentConversationId) {
+      const conversation = await conversationService.createConversation(
+        session.user.id,
+        documentId,
+        trimmedQuestion.substring(0, 50) // 使用问题前50字作为标题
+      )
+      currentConversationId = conversation.id
+    } else {
+      // 如果提供了conversationId，验证其是否存在且属于当前用户
+      try {
+        await conversationService.getConversation(currentConversationId, session.user.id)
+      } catch (error) {
+        // 对话不存在或无权访问，创建新对话
+        console.warn('[ChatQuery] Invalid conversationId, creating new conversation:', {
+          providedId: currentConversationId,
+          error: error instanceof Error ? error.message : String(error)
+        })
+        const conversation = await conversationService.createConversation(
+          session.user.id,
+          documentId,
+          trimmedQuestion.substring(0, 50)
+        )
+        currentConversationId = conversation.id
+      }
+    }
+
+    // 保存用户消息
+    await conversationService.createUserMessage(currentConversationId, trimmedQuestion)
+
+    // ============================================
+    // Story 3.3: 流式生成AI回答 ✅
+    // ============================================
+    const encoder = new TextEncoder()
+    let fullAnswer = ''
+
+    const stream = new ReadableStream({
+      async start(controller) {
+        const generationStartTime = Date.now()
+        try {
+          // 生成回答流
+          const answerStream = answerService.generateAnswer(
+            trimmedQuestion,
+            retrieval,
+            currentConversationId,
+            {
+              temperature: 0.1,
+              maxTokens: 500,
+              includeHistory: true
+            }
+          )
+
+          // 流式发送每个chunk
+          for await (const chunk of answerStream) {
+            fullAnswer += chunk
+            controller.enqueue(encoder.encode(chunk))
+          }
+
+          const generationTime = Date.now() - generationStartTime
+          
+          // 监控日志：成功生成
+          console.log('[MONITOR] LLM generation success:', {
+            timestamp: new Date().toISOString(),
+            userId: session.user.id,
+            conversationId: currentConversationId,
+            generationTimeMs: generationTime,
+            answerLength: fullAnswer.length,
+            tokensEstimate: Math.ceil(fullAnswer.length / 4)
+          })
+
+          // 回答生成完毕，保存到数据库（异步，不阻塞响应）
+          conversationService.createAssistantMessage(
+            currentConversationId!,
+            fullAnswer,
+            [] // citations将在Story 3.4实现
+          ).catch(err => {
+            console.error('Failed to save assistant message:', err)
+          })
+
+          // 更新使用量统计（异步，不阻塞响应）
+          usageService.incrementQueryCount(session.user.id).catch(err => {
+            console.error('Failed to update usage:', err)
+          })
+
+          controller.close()
+
+        } catch (error: any) {
+          const generationTime = Date.now() - generationStartTime
+          
+          // 监控日志：生成失败
+          console.error('[MONITOR] LLM generation failed:', {
+            timestamp: new Date().toISOString(),
+            userId: session.user.id,
+            conversationId: currentConversationId,
+            error: error.message,
+            generationTimeMs: generationTime,
+            errorType: error.message.includes('timeout') ? 'TIMEOUT' : 
+                       error.message.includes('quota') ? 'QUOTA' : 'UNKNOWN'
+          })
+          
+          // 流式错误处理
+          const errorMessage = getErrorMessage(error)
+          controller.enqueue(encoder.encode(`\n\n[错误: ${errorMessage}]`))
+          controller.close()
+        }
+      }
+    })
+
+    const totalTime = Date.now() - retrievalStartTime
+    
+    // 增强的监控日志（用于告警系统）
+    console.log('[MONITOR] Chat query streaming started:', {
+      timestamp: new Date().toISOString(),
+      userId: session.user.id,
+      documentId,
+      conversationId: currentConversationId,
+      questionLength: trimmedQuestion.length,
+      retrievalTime: `${retrieval.retrievalTime}ms`,
+      chunksRetrieved: retrieval.chunks.length,
+      totalTime: `${totalTime}ms`,
+      remainingQuota: quotaCheck.remaining,
+      // 用于监控告警的指标
+      metrics: {
+        retrievalTimeMs: retrieval.retrievalTime,
+        totalTimeMs: totalTime,
+        chunksCount: retrieval.chunks.length
+      }
+    })
+
+    // 返回流式响应
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Conversation-Id': currentConversationId
+      }
+    })
 
   } catch (error) {
     console.error('Chat query error:', error)
@@ -271,6 +415,26 @@ function handleRetrievalError(error: unknown): NextResponse {
     },
     { status: 500 }
   )
+}
+
+/**
+ * 错误消息映射（用于流式响应）
+ */
+function getErrorMessage(error: any): string {
+  const message = error?.message || String(error)
+  
+  switch (message) {
+    case 'GENERATION_TIMEOUT':
+      return '回答生成超时，请重试'
+    case 'QUOTA_EXCEEDED':
+      return 'AI服务配额已用尽'
+    case 'GENERATION_ERROR':
+      return 'AI服务暂时不可用'
+    case 'CONVERSATION_NOT_FOUND':
+      return '对话不存在'
+    default:
+      return '服务暂时不可用，请稍后重试'
+  }
 }
 
 /**

@@ -41,6 +41,16 @@ ZHIPU_API_KEY=your-zhipu-api-key
 VECTOR_PROVIDER=pgvector
 
 # ============================================
+# Redis缓存配置 (可选，用于RAG查询缓存)
+# Story 3.2新增
+# ============================================
+# 使用Upstash Redis (推荐)
+UPSTASH_REDIS_REST_URL=https://your-redis.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your-redis-token
+
+# 注意：如果不配置Redis，系统仍可正常运行，但查询缓存功能将禁用
+
+# ============================================
 # OAuth配置 (可选)
 # ============================================
 # GOOGLE_CLIENT_ID=your-google-client-id
