@@ -11,6 +11,7 @@ import { DocumentSelector } from './DocumentSelector'
 import { ChatMessageList } from './ChatMessageList'
 import { ChatInput } from './ChatInput'
 import { ConversationList } from './ConversationList'
+import { ExportButton } from './ExportButton'
 import { Button } from '@/components/ui/button'
 import { PlusCircle, FileText, Home, Menu, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -194,6 +195,15 @@ export function ChatWithHistory({ initialDocumentId }: Props) {
                   智能问答
                 </h1>
               </div>
+
+              {/* 导出按钮 */}
+              {conversationId && messages.length > 0 && (
+                <ExportButton
+                  conversationId={conversationId}
+                  conversationTitle={`对话_${new Date().toLocaleDateString()}`}
+                  className="flex-shrink-0"
+                />
+              )}
 
               {/* 新建对话按钮 */}
               {messages.length > 0 && (

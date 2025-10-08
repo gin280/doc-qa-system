@@ -23,7 +23,7 @@ async function debugVectors() {
   `)
   
   console.log('文档chunks：')
-  console.log(JSON.stringify(result.rows, null, 2))
+  console.log(JSON.stringify(result, null, 2))
   
   // 2. 检查表结构
   const tableInfo = await db.execute(sql`
@@ -37,7 +37,7 @@ async function debugVectors() {
   `)
   
   console.log('\n表结构：')
-  console.log(JSON.stringify(tableInfo.rows, null, 2))
+  console.log(JSON.stringify(tableInfo, null, 2))
 }
 
 debugVectors()

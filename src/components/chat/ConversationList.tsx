@@ -166,17 +166,17 @@ export function ConversationList({
                     </div>
                   </div>
 
-                  <Button
-                    variant="ghost"
-                    size="icon"
+                  <div
                     className={cn(
-                      'flex-shrink-0 h-8 w-8',
-                      'opacity-0 group-hover:opacity-100 transition-opacity'
+                      'flex-shrink-0 h-8 w-8 rounded-md',
+                      'flex items-center justify-center',
+                      'opacity-0 group-hover:opacity-100 transition-opacity',
+                      'hover:bg-accent cursor-pointer'
                     )}
                     onClick={(e) => handleDeleteClick(conversation.id, e)}
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
-                  </Button>
+                  </div>
                 </button>
               ))}
             </div>

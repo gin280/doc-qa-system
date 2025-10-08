@@ -45,7 +45,7 @@ function getFileIcon(fileType: string) {
  * 文档选择器组件
  */
 export function DocumentSelector({ value, onChange, className }: Props) {
-  const { documents, isLoading, error } = useDocuments()
+  const { documents, isLoading, isError } = useDocuments()
 
   // 过滤出已处理完成的文档
   const readyDocuments = documents?.filter(doc => doc.status === 'READY') ?? []
@@ -59,10 +59,10 @@ export function DocumentSelector({ value, onChange, className }: Props) {
     )
   }
 
-  if (error) {
+  if (isError) {
     return (
       <div className={cn("text-sm text-destructive", className)}>
-        加载文档失败：{error}
+        加载文档失败
       </div>
     )
   }

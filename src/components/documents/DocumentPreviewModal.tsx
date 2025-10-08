@@ -91,7 +91,6 @@ export function DocumentPreviewModal({ document, open, onClose }: Props) {
     return (
       <PreviewErrorBoundary 
         onDownload={handleDownload}
-        documentName={document?.filename}
       >
         <div className="max-h-[60vh] overflow-y-auto">
           {isMarkdown ? (
