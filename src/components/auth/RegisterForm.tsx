@@ -3,29 +3,14 @@
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { Logo } from '@/components/ui/logo'
 import { OAuthButtons } from './OAuthButtons'
-
-// 注册表单验证 Schema
-const registerSchema = z.object({
-  email: z.string().email('邮箱格式不正确'),
-  password: z
-    .string()
-    .min(8, '密码至少8位')
-    .regex(/^(?=.*[A-Za-z])(?=.*\d)/, '密码必须包含字母和数字'),
-  confirmPassword: z.string(),
-  name: z.string().min(1, '用户名不能为空').max(50, '用户名不能超过50个字符'),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: '两次密码不一致',
-  path: ['confirmPassword'],
-})
-
-type RegisterFormData = z.infer<typeof registerSchema>
+import { registerSchema, type RegisterInput } from '@/lib/validations/auth'
+import { register, ApiError } from '@/services/auth/authService'
 
 export function RegisterForm() {
   const router = useRouter()
@@ -33,40 +18,33 @@ export function RegisterForm() {
   const [error, setError] = useState<string>('')
 
   const {
-    register,
+    register: registerField,
     handleSubmit,
     formState: { errors },
-  } = useForm<RegisterFormData>({
+  } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
   })
 
-  const onSubmit = async (data: RegisterFormData) => {
+  const onSubmit = async (data: RegisterInput) => {
     try {
       setIsLoading(true)
       setError('')
 
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: data.email,
-          password: data.password,
-          name: data.name,
-        }),
-      })
+      // 使用认证服务进行注册
+      await register(data)
 
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.error || '注册失败')
-      }
-
-      // 注册成功，跳转到登录页或 dashboard
+      // 注册成功，跳转到 dashboard
       router.push('/dashboard')
     } catch (err) {
-      setError(err instanceof Error ? err.message : '注册失败，请重试')
+      // 处理不同类型的错误
+      if (err instanceof ApiError) {
+        // API 错误（包括业务错误和网络错误）
+        setError(err.message)
+      } else {
+        // 未知错误
+        setError('注册失败，请重试')
+        console.error('Registration error:', err)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -93,12 +71,20 @@ export function RegisterForm() {
           <Input
             id="name"
             type="text"
-            placeholder="请输入用户名"
-            {...register('name')}
+            placeholder="请输入用户名（支持中文、字母、数字）"
+            aria-invalid={errors.name ? 'true' : 'false'}
+            aria-describedby={errors.name ? 'name-error' : undefined}
+            {...registerField('name')}
             disabled={isLoading}
           />
           {errors.name && (
-            <p className="text-destructive text-sm mt-1 animate-in fade-in slide-in-from-top-1 duration-200">{errors.name.message}</p>
+            <p 
+              id="name-error"
+              role="alert"
+              className="text-destructive text-sm mt-1 animate-in fade-in slide-in-from-top-1 duration-200"
+            >
+              {errors.name.message}
+            </p>
           )}
         </div>
 
@@ -111,11 +97,20 @@ export function RegisterForm() {
             id="email"
             type="email"
             placeholder="your@example.com"
-            {...register('email')}
+            autoComplete="email"
+            aria-invalid={errors.email ? 'true' : 'false'}
+            aria-describedby={errors.email ? 'email-error' : undefined}
+            {...registerField('email')}
             disabled={isLoading}
           />
           {errors.email && (
-            <p className="text-destructive text-sm mt-1 animate-in fade-in slide-in-from-top-1 duration-200">{errors.email.message}</p>
+            <p 
+              id="email-error"
+              role="alert"
+              className="text-destructive text-sm mt-1 animate-in fade-in slide-in-from-top-1 duration-200"
+            >
+              {errors.email.message}
+            </p>
           )}
         </div>
 
@@ -127,12 +122,21 @@ export function RegisterForm() {
           <Input
             id="password"
             type="password"
-            placeholder="至少8位，包含字母和数字"
-            {...register('password')}
+            placeholder="至少8位，包含大小写字母、数字和特殊字符"
+            autoComplete="new-password"
+            aria-invalid={errors.password ? 'true' : 'false'}
+            aria-describedby={errors.password ? 'password-error' : undefined}
+            {...registerField('password')}
             disabled={isLoading}
           />
           {errors.password && (
-            <p className="text-destructive text-sm mt-1 animate-in fade-in slide-in-from-top-1 duration-200">{errors.password.message}</p>
+            <p 
+              id="password-error"
+              role="alert"
+              className="text-destructive text-sm mt-1 animate-in fade-in slide-in-from-top-1 duration-200"
+            >
+              {errors.password.message}
+            </p>
           )}
         </div>
 
@@ -145,17 +149,30 @@ export function RegisterForm() {
             id="confirmPassword"
             type="password"
             placeholder="再次输入密码"
-            {...register('confirmPassword')}
+            autoComplete="new-password"
+            aria-invalid={errors.confirmPassword ? 'true' : 'false'}
+            aria-describedby={errors.confirmPassword ? 'confirmPassword-error' : undefined}
+            {...registerField('confirmPassword')}
             disabled={isLoading}
           />
           {errors.confirmPassword && (
-            <p className="text-destructive text-sm mt-1 animate-in fade-in slide-in-from-top-1 duration-200">{errors.confirmPassword.message}</p>
+            <p 
+              id="confirmPassword-error"
+              role="alert"
+              className="text-destructive text-sm mt-1 animate-in fade-in slide-in-from-top-1 duration-200"
+            >
+              {errors.confirmPassword.message}
+            </p>
           )}
         </div>
 
         {/* 错误提示 */}
         {error && (
-          <div className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded animate-in fade-in slide-in-from-top-2 duration-300">
+          <div 
+            role="alert"
+            aria-live="assertive"
+            className="bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded animate-in fade-in slide-in-from-top-2 duration-300"
+          >
             {error}
           </div>
         )}

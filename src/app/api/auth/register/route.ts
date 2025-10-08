@@ -5,16 +5,10 @@ import { db } from '@/lib/db'
 import { users, userUsage } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
+import { registerApiSchema } from '@/lib/validations/auth'
 
-// 注册请求验证 Schema
-const registerSchema = z.object({
-  email: z.string().email('邮箱格式不正确'),
-  password: z
-    .string()
-    .min(8, '密码至少8位')
-    .regex(/^(?=.*[A-Za-z])(?=.*\d)/, '密码必须包含字母和数字'),
-  name: z.string().min(1, '姓名不能为空').max(50, '姓名过长'),
-})
+// 注册请求验证 Schema - 使用后端专用的验证规则
+// 不包含 confirmPassword (前端已验证), 用户名允许空格
 
 export async function POST(req: NextRequest) {
   try {
@@ -47,7 +41,7 @@ export async function POST(req: NextRequest) {
 
     // 1. 验证请求体
     const body = await req.json()
-    const validData = registerSchema.parse(body)
+    const validData = registerApiSchema.parse(body)
 
     // 2. 检查邮箱是否已存在
     const [existingUser] = await db

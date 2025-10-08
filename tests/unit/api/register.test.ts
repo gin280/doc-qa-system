@@ -22,6 +22,8 @@ jest.mock('drizzle-orm', () => ({
   eq: jest.fn(),
 }))
 
+// rate-limit 已在 jest.setup.js 中全局 mock
+
 // NOW import the route handler after all mocks are set up
 import { POST } from '@/app/api/auth/register/route'
 import { db } from '@/lib/db'
@@ -73,7 +75,7 @@ describe('POST /api/auth/register', () => {
       },
       body: JSON.stringify({
         email: 'new@example.com',
-        password: 'password123',
+        password: 'Test123!@#', // 符合新规则：大小写+数字+特殊字符
         name: 'Test User',
       }),
     })
@@ -90,7 +92,7 @@ describe('POST /api/auth/register', () => {
       email: 'new@example.com',
       name: 'Test User',
     })
-    expect(bcrypt.hash).toHaveBeenCalledWith('password123', 10)
+    expect(bcrypt.hash).toHaveBeenCalledWith('Test123!@#', 10)
   })
 
   it('应该拒绝已存在的邮箱', async () => {
@@ -113,7 +115,7 @@ describe('POST /api/auth/register', () => {
       },
       body: JSON.stringify({
         email: 'existing@example.com',
-        password: 'password123',
+        password: 'Test123!@#', // 符合新规则
         name: 'Test User',
       }),
     })
@@ -133,7 +135,7 @@ describe('POST /api/auth/register', () => {
       },
       body: JSON.stringify({
         email: 'invalid-email',
-        password: 'password123',
+        password: 'Test123!@#', // 符合新规则
         name: 'Test User',
       }),
     })
@@ -183,6 +185,141 @@ describe('POST /api/auth/register', () => {
 
     expect(response.status).toBe(400)
     expect(data.error).toBe('输入验证失败')
+  })
+
+  // 新增：测试新的密码强度规则
+  it('应该拒绝不包含大写字母的密码', async () => {
+    const req = new Request('http://localhost/api/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: 'test@example.com',
+        password: 'test123!@#', // 无大写字母
+        name: 'Test User',
+      }),
+    })
+
+    const response = await POST(req as any)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('输入验证失败')
+    expect(data.details).toBeDefined()
+  })
+
+  it('应该拒绝不包含小写字母的密码', async () => {
+    const req = new Request('http://localhost/api/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: 'test@example.com',
+        password: 'TEST123!@#', // 无小写字母
+        name: 'Test User',
+      }),
+    })
+
+    const response = await POST(req as any)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('输入验证失败')
+  })
+
+  it('应该拒绝不包含数字的密码', async () => {
+    const req = new Request('http://localhost/api/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: 'test@example.com',
+        password: 'TestTest!@#', // 无数字
+        name: 'Test User',
+      }),
+    })
+
+    const response = await POST(req as any)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('输入验证失败')
+  })
+
+  it('应该拒绝不包含特殊字符的密码', async () => {
+    const req = new Request('http://localhost/api/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: 'test@example.com',
+        password: 'Test1234', // 无特殊字符
+        name: 'Test User',
+      }),
+    })
+
+    const response = await POST(req as any)
+    const data = await response.json()
+
+    expect(response.status).toBe(400)
+    expect(data.error).toBe('输入验证失败')
+  })
+
+  it('应该接受符合所有规则的强密码', async () => {
+    // Mock 数据库查询 - 邮箱不存在
+    const mockSelect = {
+      from: jest.fn().mockReturnThis(),
+      where: jest.fn().mockResolvedValue([]),
+    }
+    db.select = jest.fn().mockReturnValue(mockSelect) as any
+
+    // Mock bcrypt hash
+    bcrypt.hash = jest.fn().mockResolvedValue('hashed_password_123') as any
+
+    // Mock 事务
+    const mockTx = {
+      insert: jest.fn().mockImplementation(() => {
+        return {
+          values: jest.fn().mockReturnThis(),
+          returning: jest.fn().mockResolvedValue([
+            {
+              id: 'user_123',
+              email: 'test@example.com',
+              name: 'Test User',
+              passwordHash: 'hashed_password_123',
+              authProvider: 'EMAIL',
+            },
+          ]),
+        }
+      }),
+    }
+
+    db.transaction = jest.fn().mockImplementation(async (callback) => {
+      return await callback(mockTx)
+    }) as any
+
+    const req = new Request('http://localhost/api/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: 'test@example.com',
+        password: 'Test123!@#', // 包含大小写、数字、特殊字符
+        name: 'Test User',
+      }),
+    })
+
+    const response = await POST(req as any)
+    const data = await response.json()
+
+    expect(response.status).toBe(201)
+    expect(data.success).toBe(true)
+    expect(bcrypt.hash).toHaveBeenCalledWith('Test123!@#', 10)
   })
 })
 
