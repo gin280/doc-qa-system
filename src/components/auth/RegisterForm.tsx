@@ -33,8 +33,8 @@ export function RegisterForm() {
       // 使用认证服务进行注册
       await register(data)
 
-      // 注册成功，跳转到 dashboard
-      router.push('/dashboard')
+      // Story 1.10: 注册成功，直接跳转到 Chat
+      router.push('/chat')
     } catch (err) {
       // 处理不同类型的错误
       if (err instanceof ApiError) {

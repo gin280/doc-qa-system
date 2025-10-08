@@ -1,30 +1,22 @@
-import { auth } from '@/lib/auth';
-import { redirect } from 'next/navigation';
-import { HeroSection } from '@/components/landing/hero-section';
-import type { Metadata } from 'next';
+import { auth } from '@/lib/auth'
+import { redirect } from 'next/navigation'
+import { HeroSection } from '@/components/landing/hero-section'
 
-export const metadata: Metadata = {
-  title: '智能文档问答系统 - 基于 AI 的文档分析平台',
-  description: '基于 AI 的智能文档分析与问答平台，上传您的文档，让 AI 帮您快速找到答案，提升工作效率。',
-  keywords: ['文档问答', 'AI', '智能分析', '文档管理', 'QA系统'],
-  openGraph: {
-    title: '智能文档问答系统',
-    description: '基于 AI 的智能文档分析与问答平台',
-    type: 'website',
-  },
-};
-
+/**
+ * Home Page - 根路径智能重定向
+ * 
+ * 逻辑:
+ * - 已登录用户 → 跳转到 /chat (默认首页)
+ * - 未登录用户 → 显示 Landing Page
+ */
 export default async function Home() {
-  // 检查用户登录状态
-  const session = await auth();
+  const session = await auth()
   
-  // PO Decision: 已登录用户直接跳转到Dashboard
-  // 让用户先看到欢迎页面，再选择功能
+  // 已登录用户直接跳转到 Chat
   if (session?.user) {
-    redirect('/dashboard');
+    redirect('/chat')
   }
 
-  // 未登录用户显示 Landing Page with Hero Animation
-  return <HeroSection />;
+  // 未登录用户显示 Landing Page
+  return <HeroSection />
 }
-

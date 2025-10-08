@@ -47,8 +47,12 @@ function getFileIcon(fileType: string) {
 export function DocumentSelector({ value, onChange, className }: Props) {
   const { documents, isLoading, isError } = useDocuments()
 
-  // 过滤出已处理完成的文档
-  const readyDocuments = documents?.filter(doc => doc.status === 'READY') ?? []
+  // 分类文档：处理完成的和正在处理的
+  const allDocuments = documents ?? []
+  const readyDocuments = allDocuments.filter(doc => doc.status === 'READY')
+  const processingDocuments = allDocuments.filter(doc => 
+    ['PENDING', 'PARSING', 'EMBEDDING'].includes(doc.status)
+  )
 
   if (isLoading) {
     return (
@@ -67,10 +71,10 @@ export function DocumentSelector({ value, onChange, className }: Props) {
     )
   }
 
-  if (readyDocuments.length === 0) {
+  if (allDocuments.length === 0) {
     return (
       <div className={cn("text-sm text-muted-foreground", className)}>
-        暂无可用文档，请先<a href="/documents" className="text-primary hover:underline">上传文档</a>
+        暂无文档，请先上传文档
       </div>
     )
   }
@@ -82,11 +86,23 @@ export function DocumentSelector({ value, onChange, className }: Props) {
       </SelectTrigger>
       <SelectContent>
         <SelectGroup>
+          {/* 可用文档 */}
           {readyDocuments.map((doc) => (
             <SelectItem key={doc.id} value={doc.id}>
               <div className="flex items-center gap-2">
                 {getFileIcon(doc.fileType)}
                 <span className="truncate">{doc.filename}</span>
+              </div>
+            </SelectItem>
+          ))}
+          
+          {/* 正在处理的文档 - 禁用状态 */}
+          {processingDocuments.map((doc) => (
+            <SelectItem key={doc.id} value={doc.id} disabled>
+              <div className="flex items-center gap-2 opacity-60">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="truncate">{doc.filename}</span>
+                <span className="text-xs text-muted-foreground">(处理中...)</span>
               </div>
             </SelectItem>
           ))}

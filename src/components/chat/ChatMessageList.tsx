@@ -14,8 +14,11 @@ import { motion, AnimatePresence } from 'framer-motion'
 interface Props {
   messages: Message[]
   isLoading: boolean
+  isLoadingHistory?: boolean
   onRetry?: (messageId: string) => void
   onExampleClick?: (question: string) => void
+  onUploadClick?: () => void
+  selectedDocument?: { id: string; name: string } | null
 }
 
 /**
@@ -25,7 +28,15 @@ interface Props {
  * - 加载指示器
  * - 空状态
  */
-export function ChatMessageList({ messages, isLoading, onRetry, onExampleClick }: Props) {
+export function ChatMessageList({ 
+  messages, 
+  isLoading, 
+  isLoadingHistory,
+  onRetry, 
+  onExampleClick,
+  onUploadClick,
+  selectedDocument
+}: Props) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -38,8 +49,14 @@ export function ChatMessageList({ messages, isLoading, onRetry, onExampleClick }
   }, [messages, isLoading])
 
   // 空状态
-  if (messages.length === 0 && !isLoading) {
-    return <EmptyState onExampleClick={onExampleClick} />
+  if (messages.length === 0 && !isLoading && !isLoadingHistory) {
+    return (
+      <EmptyState 
+        onExampleClick={onExampleClick}
+        onUploadClick={onUploadClick}
+        selectedDocument={selectedDocument}
+      />
+    )
   }
 
   return (
@@ -69,8 +86,8 @@ export function ChatMessageList({ messages, isLoading, onRetry, onExampleClick }
           ))}
         </AnimatePresence>
 
-        {/* 加载指示器 */}
-        {isLoading && (
+        {/* 加载指示器 - 只在等待AI响应时显示，一旦开始输出就隐藏 */}
+        {isLoading && !messages.some(m => m.role === 'assistant' && m.status === 'pending' && m.content.length > 0) && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

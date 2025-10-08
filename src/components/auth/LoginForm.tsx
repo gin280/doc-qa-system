@@ -59,9 +59,9 @@ export function LoginForm() {
         }
         setIsLoading(false);
       } else if (result?.ok) {
-        // PO Decision: 直接跳转到主工作区（文档管理）
-        // 减少用户步骤，直达核心功能
-        window.location.href = '/documents';
+        // Story 1.10: 登录成功后直接跳转到 Chat
+        // Chat 是应用的默认首页
+        window.location.href = '/chat';
       }
     } catch (err) {
       console.error('Login error:', err);

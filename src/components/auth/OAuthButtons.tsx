@@ -11,7 +11,8 @@ export function OAuthButtons() {
   const handleGoogleSignIn = async () => {
     try {
       setIsGoogleLoading(true)
-      await signIn('google', { callbackUrl: '/dashboard' })
+      // Story 1.10: OAuth 登录后跳转到 Chat
+      await signIn('google', { callbackUrl: '/chat' })
     } catch (error) {
       console.error('Google sign in error:', error)
     } finally {
@@ -22,7 +23,8 @@ export function OAuthButtons() {
   const handleGitHubSignIn = async () => {
     try {
       setIsGitHubLoading(true)
-      await signIn('github', { callbackUrl: '/dashboard' })
+      // Story 1.10: OAuth 登录后跳转到 Chat
+      await signIn('github', { callbackUrl: '/chat' })
     } catch (error) {
       console.error('GitHub sign in error:', error)
     } finally {
