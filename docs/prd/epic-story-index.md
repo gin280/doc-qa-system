@@ -4,7 +4,7 @@
 
 **项目周期**: 8-10周  
 **总Epic数**: 3个  
-**总Story数**: 19个  
+**总Story数**: 20个  
 **状态**: MVP开发阶段
 
 ---
@@ -37,15 +37,20 @@
 | 1.6 | 用户账户管理页面 | P1 | 3天 | Draft | [Story 1.6](../stories/1.6-user-account-management.md) |
 | **1.7** | **Landing Page 与导航实现** | **P0** | **1天** | **Draft** | **[Story 1.7](../stories/1.7-landing-page.md)** |
 | **1.8** | **全局 UI/UX 增强优化** | **P1** | **2-3天** | **Draft** | **[Story 1.8](../stories/1.8-ui-ux-enhancement.md)** |
+| **1.9** | **测试基础设施优化** | **P2** | **0.5天** | **Done** | **[Story 1.9](../stories/1.9-testing-infrastructure.md)** |
 
 **关键里程碑**:
 - ✅ 项目基础架构完成
 - ✅ 用户可以注册和登录
 - ✅ 应用部署到Vercel
+- ✅ 测试基础设施优化完成
 
 **架构参考**:
 - `docs/architecture.md#authentication-authorization`
 - `docs/architecture.md#database-schema`
+
+**测试文档**:
+- `docs/testing/` - 测试文档中心（新增）
 
 ---
 

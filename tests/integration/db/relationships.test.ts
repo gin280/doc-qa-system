@@ -1,21 +1,35 @@
-// tests/unit/db/relationships.test.ts
+/**
+ * 集成测试 - Database Relationships and Cascade Delete
+ * 
+ * ⚠️ 警告：此测试会连接真实数据库（Supabase）
+ * 
+ * 测试策略：
+ * - 使用时间戳生成唯一的测试邮箱
+ * - 测试数据库级联删除功能
+ * - 每个测试前后自动清理数据
+ * 
+ * 运行方式：
+ * npm run test:integration -- tests/integration/db/relationships.test.ts
+ */
+
 import { describe, it, expect, beforeEach, afterAll } from '@jest/globals'
 import { db } from '../../../src/lib/db'
 import { users, documents, conversations, messages, documentChunks, userUsage } from '../../../drizzle/schema'
 import { eq } from 'drizzle-orm'
 
-describe('Database Relationships and Cascade Delete', () => {
+describe('Database Relationships and Cascade Delete (Integration)', () => {
   let testUserId: string
   let testDocumentId: string
   let testConversationId: string
+  const TEST_EMAIL = `integration-rel-test-${Date.now()}@example.com`
 
   beforeEach(async () => {
     // 先删除可能存在的测试数据
-    await db.delete(users).where(eq(users.email, 'relationship-test@example.com'))
+    await db.delete(users).where(eq(users.email, TEST_EMAIL))
     
     // 创建测试用户
     const [user] = await db.insert(users).values({
-      email: 'relationship-test@example.com',
+      email: TEST_EMAIL,
       name: 'Relationship Test User',
     }).returning()
     testUserId = user.id
@@ -41,7 +55,21 @@ describe('Database Relationships and Cascade Delete', () => {
 
   afterAll(async () => {
     // 最终清理所有测试数据
-    await db.delete(users).where(eq(users.email, 'relationship-test@example.com'))
+    try {
+      await db.delete(users).where(eq(users.email, TEST_EMAIL))
+      
+      // 额外清理：删除所有老的测试数据
+      const oldTestUsers = await db.select()
+        .from(users)
+        .where(eq(users.email, 'relationship-test@example.com'))
+      
+      if (oldTestUsers.length > 0) {
+        await db.delete(users).where(eq(users.email, 'relationship-test@example.com'))
+        console.log(`🧹 清理了 ${oldTestUsers.length} 个老的关系测试用户`)
+      }
+    } catch (error) {
+      console.error('清理测试数据失败:', error)
+    }
   })
 
   it('should create user with document relationship', async () => {
