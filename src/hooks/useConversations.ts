@@ -82,6 +82,7 @@ export function useConversations(search?: string, documentId?: string) {
     fetcher,
     {
       revalidateOnFocus: true,
+      refreshInterval: 10000, // 每10秒自动刷新对话列表
       dedupingInterval: 2000
     }
   )

@@ -54,8 +54,9 @@ export function DeleteAccountModal({ open, onClose, userEmail }: Props) {
       await signOut({ redirect: false })
       router.push('/')
       toast.success('账户已删除')
-    } catch (error: any) {
-      toast.error(error.message || '删除账户失败,请重试')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '删除账户失败,请重试'
+      toast.error(errorMessage)
     } finally {
       setIsDeleting(false)
     }

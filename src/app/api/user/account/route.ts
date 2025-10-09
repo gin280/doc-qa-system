@@ -23,9 +23,10 @@ export async function DELETE(request: NextRequest) {
     // Rate limiting
     try {
       await deleteLimiter.check(session.user.email, 1)
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '操作过于频繁,请1小时后再试'
       return NextResponse.json(
-        { error: error.message || '操作过于频繁,请1小时后再试' },
+        { error: errorMessage },
         { status: 429 }
       )
     }

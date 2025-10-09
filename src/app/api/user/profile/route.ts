@@ -6,7 +6,7 @@ import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 // GET /api/user/profile - 获取用户信息
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await auth()
 

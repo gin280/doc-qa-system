@@ -3,9 +3,9 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { users } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
-import { z } from 'zod'
 import bcrypt from 'bcrypt'
 import { rateLimit } from '@/lib/rate-limit-advanced'
+import { changePasswordSchema } from '@/lib/validations/auth'
 
 const passwordLimiter = rateLimit({
   interval: 5 * 60 * 1000, // 5 minutes
@@ -24,27 +24,25 @@ export async function PATCH(request: NextRequest) {
     // Rate limiting
     try {
       await passwordLimiter.check(session.user.email, 3)
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '操作过于频繁,请5分钟后再试'
       return NextResponse.json(
-        { error: error.message || '操作过于频繁,请5分钟后再试' },
+        { error: errorMessage },
         { status: 429 }
       )
     }
 
     const body = await request.json()
 
-    const passwordSchema = z.object({
-      currentPassword: z.string().min(1, '请输入当前密码'),
-      newPassword: z.string()
-        .min(8, '新密码至少8位')
-        .regex(/^(?=.*[A-Za-z])(?=.*\d)/, '新密码必须包含字母和数字'),
-      confirmPassword: z.string().min(1, '请确认新密码')
-    }).refine(data => data.newPassword === data.confirmPassword, {
-      message: '两次密码输入不一致',
-      path: ['confirmPassword']
-    })
+    // 使用统一的密码验证schema，但需要适配字段名
+    // changePasswordSchema使用confirmNewPassword，但前端传的是confirmPassword
+    const adaptedBody = {
+      currentPassword: body.currentPassword,
+      newPassword: body.newPassword,
+      confirmNewPassword: body.confirmPassword // 适配字段名
+    }
 
-    const validation = passwordSchema.safeParse(body)
+    const validation = changePasswordSchema.safeParse(adaptedBody)
     if (!validation.success) {
       const firstError = validation.error.issues[0]
       return NextResponse.json(

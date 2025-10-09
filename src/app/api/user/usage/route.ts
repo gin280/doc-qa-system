@@ -1,11 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { users, userUsage } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 
 // GET /api/user/usage - 获取使用量统计
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await auth()
 

@@ -5,21 +5,53 @@
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import { NextRequest } from 'next/server'
-import * as authModule from '@/lib/auth'
-import * as dbModule from '@/lib/db'
+
+// Mock模块必须在导入之前
+jest.mock('@/lib/auth', () => ({
+  auth: jest.fn(),
+}))
+
+jest.mock('@/lib/db', () => ({
+  db: {
+    select: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    query: {
+      users: {
+        findFirst: jest.fn()
+      },
+      userUsage: {
+        findFirst: jest.fn()
+      }
+    }
+  }
+}))
+
+jest.mock('bcrypt', () => ({
+  compare: jest.fn(),
+  hash: jest.fn(),
+}))
+
+jest.mock('@/lib/rate-limit-advanced', () => ({
+  rateLimit: jest.fn(() => ({
+    check: jest.fn().mockResolvedValue(undefined)
+  }))
+}))
+
+// 导入已mock的模块
+import { auth } from '@/lib/auth'
+import { db } from '@/lib/db'
 import bcrypt from 'bcrypt'
 
-// Mock NextAuth
-jest.mock('@/lib/auth')
-jest.mock('@/lib/db')
-jest.mock('bcrypt')
-
-const mockAuth = authModule.auth as jest.MockedFunction<typeof authModule.auth>
-const mockDb = dbModule.db as any
+const mockAuth = auth as jest.MockedFunction<typeof auth>
+const mockDb = db as any
+const mockBcrypt = bcrypt as jest.Mocked<typeof bcrypt>
 
 describe('User Settings API Tests', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    // 清除模块缓存确保每次测试使用最新的mock
+    jest.resetModules()
   })
 
   describe('GET /api/user/profile', () => {
@@ -39,7 +71,7 @@ describe('User Settings API Tests', () => {
         createdAt: new Date(),
       }
 
-      mockDb.select = jest.fn().mockReturnValue({
+      mockDb.select.mockReturnValue({
         from: jest.fn().mockReturnValue({
           where: jest.fn().mockReturnValue({
             limit: jest.fn().mockResolvedValue([mockUser])
@@ -47,10 +79,9 @@ describe('User Settings API Tests', () => {
         })
       })
 
-      // 动态导入 route handler
-      const { GET } = await import('@/app/api/user/profile/route')
-      const request = new NextRequest('http://localhost/api/user/profile')
-      const response = await GET(request)
+      // 动态导入 route handler - 需要重新导入以获取最新mock
+      const module = await import('@/app/api/user/profile/route')
+      const response = await module.GET()
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -61,9 +92,8 @@ describe('User Settings API Tests', () => {
     it('应该在未登录时返回 401', async () => {
       mockAuth.mockResolvedValue(null)
 
-      const { GET } = await import('@/app/api/user/profile/route')
-      const request = new NextRequest('http://localhost/api/user/profile')
-      const response = await GET(request)
+      const module = await import('@/app/api/user/profile/route')
+      const response = await module.GET()
 
       expect(response.status).toBe(401)
     })
@@ -166,16 +196,16 @@ describe('User Settings API Tests', () => {
         })
       })
 
-      ;(bcrypt.compare as jest.MockedFunction<typeof bcrypt.compare>).mockResolvedValue(true as never)
-      ;(bcrypt.hash as jest.MockedFunction<typeof bcrypt.hash>).mockResolvedValue('new-hashed-password' as never)
+      mockBcrypt.compare.mockResolvedValue(true as any)
+      mockBcrypt.hash.mockResolvedValue('new-hashed-password' as any)
 
       const { PATCH } = await import('@/app/api/user/password/route')
       const request = new NextRequest('http://localhost/api/user/password', {
         method: 'PATCH',
         body: JSON.stringify({
-          currentPassword: 'oldPassword123',
-          newPassword: 'newPassword123',
-          confirmPassword: 'newPassword123'
+          currentPassword: 'OldPass123!',
+          newPassword: 'NewPass456@',
+          confirmPassword: 'NewPass456@'
         })
       })
       const response = await PATCH(request)
@@ -204,15 +234,15 @@ describe('User Settings API Tests', () => {
         })
       })
 
-      ;(bcrypt.compare as jest.MockedFunction<typeof bcrypt.compare>).mockResolvedValue(false as never)
+      mockBcrypt.compare.mockResolvedValue(false as any)
 
       const { PATCH } = await import('@/app/api/user/password/route')
       const request = new NextRequest('http://localhost/api/user/password', {
         method: 'PATCH',
         body: JSON.stringify({
-          currentPassword: 'wrongPassword',
-          newPassword: 'newPassword123',
-          confirmPassword: 'newPassword123'
+          currentPassword: 'WrongPass123!',
+          newPassword: 'NewPass456@',
+          confirmPassword: 'NewPass456@'
         })
       })
       const response = await PATCH(request)
@@ -231,7 +261,7 @@ describe('User Settings API Tests', () => {
       const request = new NextRequest('http://localhost/api/user/password', {
         method: 'PATCH',
         body: JSON.stringify({
-          currentPassword: 'oldPassword123',
+          currentPassword: 'OldPass123!',
           newPassword: 'weak',
           confirmPassword: 'weak'
         })
@@ -240,7 +270,7 @@ describe('User Settings API Tests', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toContain('至少8位')
+      expect(data.error).toContain('至少需要8个字符')
     })
 
     it('应该在密码不匹配时返回错误', async () => {
@@ -252,16 +282,16 @@ describe('User Settings API Tests', () => {
       const request = new NextRequest('http://localhost/api/user/password', {
         method: 'PATCH',
         body: JSON.stringify({
-          currentPassword: 'oldPassword123',
-          newPassword: 'newPassword123',
-          confirmPassword: 'different123'
+          currentPassword: 'OldPass123!',
+          newPassword: 'NewPass456@',
+          confirmPassword: 'Different789#'
         })
       })
       const response = await PATCH(request)
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('两次密码输入不一致')
+      expect(data.error).toBe('两次输入的新密码不一致')
     })
   })
 

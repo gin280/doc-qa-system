@@ -33,12 +33,21 @@ export function ChangePasswordModal({ open, onClose }: Props) {
       newErrors.currentPassword = '请输入当前密码'
     }
 
-    if (!newPassword) {
+    // 检查新密码是否与当前密码相同
+    if (newPassword && currentPassword && newPassword === currentPassword) {
+      newErrors.newPassword = '新密码不能与当前密码相同'
+    } else if (!newPassword) {
       newErrors.newPassword = '请输入新密码'
     } else if (newPassword.length < 8) {
-      newErrors.newPassword = '密码至少8位'
-    } else if (!/^(?=.*[A-Za-z])(?=.*\d)/.test(newPassword)) {
-      newErrors.newPassword = '密码必须包含字母和数字'
+      newErrors.newPassword = '密码至少需要8个字符'
+    } else if (!/(?=.*[a-z])/.test(newPassword)) {
+      newErrors.newPassword = '密码必须包含至少一个小写字母'
+    } else if (!/(?=.*[A-Z])/.test(newPassword)) {
+      newErrors.newPassword = '密码必须包含至少一个大写字母'
+    } else if (!/(?=.*\d)/.test(newPassword)) {
+      newErrors.newPassword = '密码必须包含至少一个数字'
+    } else if (!/(?=.*[@$!%*?&#])/.test(newPassword)) {
+      newErrors.newPassword = '密码必须包含至少一个特殊字符 (@$!%*?&#)'
     }
 
     if (!confirmPassword) {
@@ -76,8 +85,9 @@ export function ChangePasswordModal({ open, onClose }: Props) {
 
       toast.success('密码修改成功')
       handleClose()
-    } catch (error: any) {
-      toast.error(error.message || '密码修改失败,请重试')
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '密码修改失败,请重试'
+      toast.error(errorMessage)
     } finally {
       setIsLoading(false)
     }
@@ -94,10 +104,24 @@ export function ChangePasswordModal({ open, onClose }: Props) {
   const getPasswordStrength = (password: string) => {
     if (password.length === 0) return { label: '', color: '' }
     if (password.length < 8) return { label: '弱', color: 'text-red-500' }
-    if (!/^(?=.*[A-Za-z])(?=.*\d)/.test(password)) return { label: '弱', color: 'text-red-500' }
-    if (password.length >= 12 && /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*?&])/.test(password)) {
+    
+    // 检查所有必需的字符类型
+    const hasLower = /(?=.*[a-z])/.test(password)
+    const hasUpper = /(?=.*[A-Z])/.test(password)
+    const hasNumber = /(?=.*\d)/.test(password)
+    const hasSpecial = /(?=.*[@$!%*?&#])/.test(password)
+    
+    // 如果不满足基本要求（小写+大写+数字+特殊字符），则为弱
+    if (!hasLower || !hasUpper || !hasNumber || !hasSpecial) {
+      return { label: '弱', color: 'text-red-500' }
+    }
+    
+    // 满足基本要求且长度>=12，则为强
+    if (password.length >= 12) {
       return { label: '强', color: 'text-green-500' }
     }
+    
+    // 满足基本要求但长度<12，则为中
     return { label: '中', color: 'text-yellow-500' }
   }
 
