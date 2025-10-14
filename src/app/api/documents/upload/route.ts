@@ -11,6 +11,7 @@ import {
   validateFileExtension 
 } from '@/lib/file-validator'
 import { StorageService } from '@/services/documents/storageService'
+import { checkUploadRateLimit, logRateLimitExceeded } from '@/lib/rateLimit'
 
 const MAX_DOCUMENTS_PER_USER = 50
 const MAX_STORAGE_PER_USER = 500 * 1024 * 1024  // 500MB
@@ -45,8 +46,53 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 2. 获取文件
-    const formData = await req.formData()
+    // ✨ 2. Story 4.1: 速率限制检查 + 性能优化（并行化）
+    // PERF-001: 并行执行速率检查和formData解析以减少延迟
+    const [rateLimitResult, formData] = await Promise.all([
+      checkUploadRateLimit(session.user.id),
+      req.formData()
+    ])
+    
+    // 检查速率限制结果
+    if (!rateLimitResult.success) {
+      // 计算重试时间(秒)
+      const retryAfter = Math.ceil((rateLimitResult.reset - Date.now()) / 1000)
+      
+      // AC4: 记录超限事件
+      logRateLimitExceeded(
+        session.user.id,
+        req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown',
+        {
+          limit: rateLimitResult.limit,
+          remaining: rateLimitResult.remaining,
+          retryAfter
+        }
+      )
+      
+      // AC2: 返回429响应with详细信息
+      return NextResponse.json(
+        {
+          error: '上传过于频繁，请稍后再试',
+          details: {
+            limit: rateLimitResult.limit,
+            remaining: 0,
+            retryAfter,
+            resetAt: new Date(rateLimitResult.reset).toISOString()
+          }
+        },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': retryAfter.toString(),
+            'X-RateLimit-Limit': rateLimitResult.limit.toString(),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': rateLimitResult.reset.toString()
+          }
+        }
+      )
+    }
+
+    // 3. 获取文件
     const file = formData.get('file') as File | null
 
     if (!file) {

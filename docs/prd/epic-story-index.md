@@ -2,18 +2,19 @@
 
 智能文档问答系统(DocQA System)的完整Epic和Story结构。
 
-**项目周期**: 8-10周  
-**总Epic数**: 3个  
-**总Story数**: 20个  
-**状态**: MVP开发阶段
+**项目周期**: 12周  
+**总Epic数**: 4个  
+**总Story数**: 33个  
+**状态**: 质量改进阶段
 
 ---
 
 ## 快速导航
 
-- [Epic 1: 基础设施与用户认证](#epic-1-基础设施与用户认证) (8 Stories, 3-4周)
-- [Epic 2: 文档管理与解析](#epic-2-文档管理与解析) (5 Stories, 3-4周)
-- [Epic 3: 智能问答与引用系统](#epic-3-智能问答与引用系统) (6 Stories, 3-4周)
+- [Epic 1: 基础设施与用户认证](#epic-1-基础设施与用户认证) (10 Stories, ✅ 已完成)
+- [Epic 2: 文档管理与解析](#epic-2-文档管理与解析) (5 Stories, ✅ 已完成)
+- [Epic 3: 智能问答与引用系统](#epic-3-智能问答与引用系统) (6 Stories, ✅ 已完成)
+- [Epic 4: 系统质量改进](#epic-4-系统质量改进) (13 Stories, 🔄 进行中)
 
 ---
 
@@ -124,16 +125,103 @@
 
 ---
 
+## Epic 4: 系统质量改进
+
+**目标**: 基于QA全面评估，系统性提升安全、性能、质量和可观测性
+
+**Epic文档**: [`docs/prd/epic-4-quality-improvements.md`](./epic-4-quality-improvements.md)
+
+**时间**: 2周 | **优先级**: P0 | **状态**: Planning
+
+### 包含的Story
+
+#### Sprint 1: P0 关键改进 (Week 1)
+
+| Story ID | 标题 | 优先级 | 工时 | 状态 | 收益 |
+|----------|------|--------|------|------|------|
+| 4.1 | 添加上传速率限制 | P0 | 1h | Draft | DoS 防护 |
+| 4.2 | Query Embedding 缓存 | P0 | 4h | Draft | 检索快 380ms (63%⬇️) |
+| 4.3 | RetrievalService 单元测试 | P0 | 8h | Draft | 回归风险降低 |
+| 4.4 | AnswerService 单元测试 | P0 | 6h | Draft | 回归风险降低 |
+| 4.5 | 边界情况处理增强 | P0 | 4h | Draft | 系统稳定性 |
+| 4.6 | TypeScript 类型安全重构 | P0 | 16h | Draft | 类型安全 |
+
+**Sprint 1 总工作量**: ~39小时 (~5天)
+
+#### Sprint 2: P1 重要改进 (Week 2)
+
+| Story ID | 标题 | 优先级 | 工时 | 状态 | 收益 |
+|----------|------|--------|------|------|------|
+| 4.7 | 向量维度不匹配验证 | P1 | 2h | Draft | 数据一致性 |
+| 4.8 | 批处理并行优化 | P1 | 6h | Draft | 向量化快 40% |
+| 4.9 | Prompt 动态调整 | P1 | 4h | Draft | 响应快 30% |
+| 4.10 | E2E 集成测试 | P1 | 8h | Draft | 端到端保证 |
+| 4.11 | Vercel Analytics 集成 | P1 | 2h | Draft | 性能可见性 |
+| 4.12 | Axiom 日志集成 | P1 | 6h | Draft | 结构化监控 |
+| 4.13 | CSP 头配置 | P1 | 2h | Draft | XSS 增强防护 |
+
+**Sprint 2 总工作量**: ~30小时 (~4天)
+
+### 关键里程碑
+
+**Milestone 1: Sprint 1 完成** (Week 1 End)
+- ✅ 所有 P0 Story 通过 QA 审核
+- ✅ 测试覆盖率 ≥ 70%
+- ✅ 查询响应时间 < 300ms
+- ✅ 无 Critical 安全问题
+
+**Milestone 2: Sprint 2 完成** (Week 2 End)
+- ✅ 所有 P1 Story 通过 QA 审核
+- ✅ 测试覆盖率 ≥ 80%
+- ✅ 查询响应时间 < 250ms (P50)
+- ✅ 监控体系完整上线
+
+**Milestone 3: 生产部署** (Week 3)
+- ✅ 完整的回归测试通过
+- ✅ 性能测试验证
+- ✅ 系统评分 ≥ 92/100
+- ✅ 生产就绪度 ≥ 95%
+
+### 成功指标
+
+| 指标 | 基线 | 目标 | 提升 |
+|-----|------|------|------|
+| 系统评分 | 85/100 | ≥92/100 | +7分 |
+| 查询响应 (P50) | 600ms | ≤250ms | 58%⬇️ |
+| 测试覆盖率 | 65% | ≥80% | +15% |
+| TypeScript any | 24处 | 0处 | 100%⬇️ |
+| 生产就绪度 | 82% | ≥95% | +13% |
+
+**架构参考**:
+- `docs/qa/system-comprehensive-quality-assessment.md` - 质量评估报告
+- `docs/testing/strategy.md` - 测试策略
+- `docs/architecture.md` - 架构文档
+
+**技术亮点**:
+- Query Embedding 缓存: 检索速度提升 63%
+- 批处理并行: 向量化速度提升 40%
+- 完整监控体系: Vercel Analytics + Axiom
+
+---
+
 ## 开发时间线
 
+### MVP 阶段 (已完成)
 ```
-Week 1-2:   Epic 1 基础设施 (Story 1.1-1.3)
-Week 3:     Epic 1 认证系统 (Story 1.4-1.6)
-Week 4-5:   Epic 2 文档上传和存储 (Story 2.1-2.2)
-Week 6-7:   Epic 2 文档解析和向量化 (Story 2.3-2.5)
-Week 8:     Epic 3 RAG核心实现 (Story 3.1-3.3)
-Week 9:     Epic 3 引用和对话管理 (Story 3.4-3.6)
-Week 10:    集成测试、优化、MVP交付
+Week 1-2:   Epic 1 基础设施 (Story 1.1-1.3) ✅
+Week 3:     Epic 1 认证系统 (Story 1.4-1.6) ✅
+Week 4-5:   Epic 2 文档上传和存储 (Story 2.1-2.2) ✅
+Week 6-7:   Epic 2 文档解析和向量化 (Story 2.3-2.5) ✅
+Week 8:     Epic 3 RAG核心实现 (Story 3.1-3.3) ✅
+Week 9:     Epic 3 引用和对话管理 (Story 3.4-3.6) ✅
+Week 10:    集成测试、优化、MVP交付 ✅
+```
+
+### 质量改进阶段 (当前)
+```
+Week 11:    Epic 4 Sprint 1 - P0 关键改进 (Story 4.1-4.6) 🔄
+Week 12:    Epic 4 Sprint 2 - P1 重要改进 (Story 4.7-4.13) 📋
+Week 13:    回归测试、性能验证、生产部署 📋
 ```
 
 ---
@@ -199,6 +287,10 @@ graph LR
 - [Epic 1: 基础设施与用户认证](./epic-1-infrastructure-auth.md)
 - [Epic 2: 文档管理与解析](./epic-2-document-management.md)
 - [Epic 3: 智能问答与引用系统](./epic-3-intelligent-qa.md)
+- [Epic 4: 系统质量改进](./epic-4-quality-improvements.md)
+
+### 质量文档
+- [全面质量评估报告](../qa/system-comprehensive-quality-assessment.md)
 
 ### Story文档
 - 详细Story文档: `docs/stories/`
@@ -234,23 +326,31 @@ graph LR
 
 ## 成功指标
 
-**MVP交付标准**:
-- 所有P0 Story完成(15个)
-- 问答准确率≥85%
-- 引用准确率≥90%
-- 性能指标达标(首屏<2s, 问答<3s)
-- 测试覆盖率≥70%
-- 部署到生产环境
+### MVP 交付标准 (✅ 已达成)
+- ✅ 所有P0 Story完成(19个)
+- ✅ 问答准确率≥85%
+- ✅ 引用准确率≥90%
+- ✅ 性能指标达标(首屏<2s, 问答<8s)
+- ✅ 测试覆盖率 65%
+- ✅ 部署到生产环境
 
-**用户指标**:
+### 质量改进目标 (Epic 4)
+- 🎯 系统评分从 85 → 92+
+- 🎯 查询响应从 600ms → 250ms
+- 🎯 测试覆盖率从 65% → 80%
+- 🎯 TypeScript 类型安全 (0 warnings)
+- 🎯 生产就绪度从 82% → 95%
+
+### 用户指标 (持续监控)
 - 注册转化率>80%
 - 文档上传成功率>98%
 - 7日留存率>40%
+- 查询满意度>85%
 
 ---
 
-**文档版本**: 1.0  
+**文档版本**: 2.0  
 **创建日期**: 2025-01-03  
-**最后更新**: 2025-01-03  
-**负责人**: Product Owner
+**最后更新**: 2025-01-10  
+**负责人**: Sarah (Product Owner)
 

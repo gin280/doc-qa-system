@@ -21,6 +21,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "verify:oauth": "tsx scripts/verify-oauth-config.ts",
+    "verify:redis": "tsx scripts/verify-redis-config.ts",
     "predeploy": "npm run verify:oauth && npm run build && npm run test:all"
   },
   "dependencies": {
@@ -38,6 +39,7 @@
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-slot": "^1.2.3",
     "@supabase/supabase-js": "^2.58.0",
+    "@upstash/ratelimit": "^2.0.6",
     "@upstash/redis": "^1.35.4",
     "bcrypt": "^6.0.0",
     "chardet": "^2.1.0",

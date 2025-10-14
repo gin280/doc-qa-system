@@ -1,26 +1,139 @@
 // src/lib/rateLimit.ts
-// 简单的内存速率限制器（适用于单实例部署）
-// 生产环境建议使用 Redis 进行分布式速率限制
+// Upstash-based rate limiting with graceful degradation
+// Story 4.1: Upload Rate Limiting with Redis fallback strategy
+
+import { Ratelimit } from '@upstash/ratelimit'
+import { Redis } from '@upstash/redis'
+
+/**
+ * Redis client for rate limiting
+ * Uses Upstash Redis REST API
+ */
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!
+})
+
+/**
+ * Rate limit configuration for document uploads
+ * - 10 requests per minute per user
+ * - Sliding window algorithm for accurate limiting
+ * - Analytics enabled for monitoring
+ */
+export const uploadRateLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(10, '1 m'),
+  analytics: true,
+  prefix: 'ratelimit:upload',
+  // Timeout to prevent hanging requests
+  timeout: 200, // 200ms timeout for Redis operations
+})
+
+/**
+ * Rate limit check result
+ */
+export interface RateLimitResult {
+  success: boolean
+  limit: number
+  remaining: number
+  reset: number
+}
+
+/**
+ * Check upload rate limit for a user
+ * 
+ * CRITICAL: Implements graceful degradation strategy (OPS-001)
+ * - If Redis fails, logs error and allows request through
+ * - Prevents upload endpoint from becoming completely unavailable
+ * - Monitors Redis failures for alerting
+ * 
+ * @param userId - User ID to check rate limit for
+ * @returns Rate limit result with success, limit, remaining, and reset time
+ */
+export async function checkUploadRateLimit(userId: string): Promise<RateLimitResult> {
+  const identifier = `upload:${userId}`
+  
+  try {
+    // Call Upstash Rate Limit with timeout
+    const { success, limit, remaining, reset } = await uploadRateLimit.limit(identifier)
+    
+    return {
+      success,
+      limit,
+      remaining,
+      reset
+    }
+  } catch (error) {
+    // 🔴 CRITICAL: Graceful degradation strategy
+    // Redis failure should NOT block upload functionality
+    console.error('Rate limit check failed, degrading gracefully', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      userId,
+      identifier,
+      timestamp: new Date().toISOString(),
+      // Alert flag for monitoring
+      alert: 'rateLimitDegradation'
+    })
+    
+    // Allow request through on Redis failure
+    // Rationale: Availability > Short-term security reduction
+    return {
+      success: true, // Allow through
+      limit: 10,
+      remaining: -1, // -1 indicates degraded mode
+      reset: Date.now() + 60000 // 1 minute from now
+    }
+  }
+}
+
+/**
+ * Log rate limit exceeded event
+ * 
+ * AC4: Logs超限事件with required fields
+ * - userId, IP, timestamp
+ * - Level: warn
+ * - Tag: rateLimitExceeded for monitoring
+ * 
+ * @param userId - User ID
+ * @param ip - Request IP address
+ * @param details - Additional rate limit details
+ */
+export function logRateLimitExceeded(
+  userId: string,
+  ip: string,
+  details: {
+    limit: number
+    remaining: number
+    retryAfter: number
+  }
+) {
+  console.warn({
+    event: 'rateLimitExceeded',
+    userId,
+    ip,
+    endpoint: '/api/documents/upload',
+    timestamp: new Date().toISOString(),
+    details
+  })
+}
+
+// ==================== Legacy rate limiter (kept for backward compatibility) ====================
+// This section is for export endpoint rate limiting (Story 3.6)
+// TODO: Migrate to Upstash in future story
 
 interface RateLimitEntry {
   count: number
   resetAt: number
 }
 
-class RateLimiter {
+class MemoryRateLimiter {
   private store = new Map<string, RateLimitEntry>()
   
-  /**
-   * 检查速率限制
-   * @param key 限制键（通常是 userId + action）
-   * @param options 限制选项
-   * @returns 是否允许请求及重置时间
-   */
   check(
     key: string,
     options: {
-      max: number // 最大请求数
-      windowMs: number // 时间窗口（毫秒）
+      max: number
+      windowMs: number
     }
   ): {
     success: boolean
@@ -30,7 +143,6 @@ class RateLimiter {
     const now = Date.now()
     const entry = this.store.get(key)
     
-    // 如果没有记录或已过期，创建新记录
     if (!entry || now > entry.resetAt) {
       const resetAt = now + options.windowMs
       this.store.set(key, { count: 1, resetAt })
@@ -42,7 +154,6 @@ class RateLimiter {
       }
     }
     
-    // 检查是否超过限制
     if (entry.count >= options.max) {
       return {
         success: false,
@@ -51,7 +162,6 @@ class RateLimiter {
       }
     }
     
-    // 增加计数
     entry.count++
     this.store.set(key, entry)
     
@@ -62,19 +172,14 @@ class RateLimiter {
     }
   }
   
-  /**
-   * 重置指定键的限制
-   */
   reset(key: string): void {
     this.store.delete(key)
   }
   
-  /**
-   * 清理过期条目（定期清理以防止内存泄漏）
-   */
   cleanup(): void {
     const now = Date.now()
-    for (const [key, entry] of this.store.entries()) {
+    const entries = Array.from(this.store.entries())
+    for (const [key, entry] of entries) {
       if (now > entry.resetAt) {
         this.store.delete(key)
       }
@@ -82,24 +187,21 @@ class RateLimiter {
   }
 }
 
-// 全局单例实例
-export const rateLimiter = new RateLimiter()
+export const rateLimiter = new MemoryRateLimiter()
 
-// 定期清理过期条目（每 5 分钟）
 if (typeof setInterval !== 'undefined') {
   setInterval(() => {
     rateLimiter.cleanup()
   }, 5 * 60 * 1000)
 }
 
-// 预定义的速率限制配置
 export const RATE_LIMITS = {
   EXPORT: {
-    max: 5, // 每分钟最多 5 次
-    windowMs: 60 * 1000 // 1 分钟
+    max: 5,
+    windowMs: 60 * 1000
   },
   BATCH_EXPORT: {
-    max: 2, // 每 5 分钟最多 2 次（批量导出更耗资源）
-    windowMs: 5 * 60 * 1000 // 5 分钟
+    max: 2,
+    windowMs: 5 * 60 * 1000
   }
 } as const
