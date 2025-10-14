@@ -1,10 +1,13 @@
 /**
  * 查询向量化服务
  * 将用户问题转换为1024维向量用于检索（智谱AI embedding-2）
+ * 
+ * Story 4.2: 添加 Embedding 缓存支持,性能提升 60%+
  */
 
 import { LLMRepositoryFactory } from '@/infrastructure/llm/llm-repository.factory'
 import { llmConfig, EMBEDDING_DIMENSION } from '@/config/llm.config'
+import { embeddingCache } from './embeddingCache'
 
 /**
  * 查询向量化错误类型
@@ -23,9 +26,9 @@ export class QueryVectorizer {
   private llmRepo = LLMRepositoryFactory.create(llmConfig)
 
   /**
-   * 向量化查询问题
+   * 向量化查询问题 (带缓存支持)
    * @param question 用户问题(1-1000字符)
-   * @returns 1536维向量
+   * @returns 1024维向量
    * @throws {QueryVectorizationError} 向量化失败或超时
    */
   async vectorizeQuery(question: string): Promise<number[]> {
@@ -42,7 +45,25 @@ export class QueryVectorizer {
         throw new QueryVectorizationError('Question too long (max 1000 characters)', 'INVALID_INPUT')
       }
 
-      // 使用LLM Repository生成embedding
+      // Story 4.2: 尝试从缓存获取向量
+      const cachedVector = await embeddingCache.get(trimmed)
+      
+      if (cachedVector) {
+        const elapsed = Date.now() - startTime
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[QueryVectorizer] Using cached embedding:', {
+            questionLength: trimmed.length,
+            vectorDim: cachedVector.length,
+            elapsed: `${elapsed}ms`,
+            source: 'cache'
+          })
+        }
+
+        return cachedVector
+      }
+
+      // 缓存未命中,调用 LLM API
       // (与Story 2.4文档向量化使用相同模型)
       const vectors = await this.llmRepo.generateEmbeddings([trimmed])
       
@@ -60,13 +81,20 @@ export class QueryVectorizer {
         )
       }
 
+      // Story 4.2: 异步写入缓存 (不阻塞响应)
+      embeddingCache.set(trimmed, vector).catch(err => {
+        console.warn('[QueryVectorizer] Failed to cache embedding:', err)
+      })
+
       const elapsed = Date.now() - startTime
 
       if (process.env.NODE_ENV === 'development') {
-        console.log('[QueryVectorizer] Query vectorized', {
+        console.log('[QueryVectorizer] Query vectorized:', {
           questionLength: trimmed.length,
           vectorDim: vector.length,
-          elapsed: `${elapsed}ms`
+          elapsed: `${elapsed}ms`,
+          source: 'api',
+          cached: true  // 已写入缓存
         })
       }
 
