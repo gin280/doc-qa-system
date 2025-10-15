@@ -58,7 +58,19 @@ export class AnswerService {
       // 1. 评估问题复杂度
       const complexity = this.assessComplexity(query)
       
-      // 2. 选择LLM提供商（智能路由）
+      // 2. 动态计算 maxTokens
+      // 优先使用用户指定值，否则根据复杂度自动设置
+      const dynamicMaxTokens = this.calculateMaxTokens(complexity)
+      const maxTokens = options.maxTokens ?? dynamicMaxTokens
+      
+      console.log('Dynamic token allocation', {
+        complexity,
+        dynamicMaxTokens,
+        userSpecified: options.maxTokens,
+        finalMaxTokens: maxTokens
+      })
+      
+      // 3. 选择LLM提供商（智能路由）
       // 目前简化实现：使用配置中的提供商
       // TODO: 未来可以实现智能路由逻辑（AC6）
       const llm = LLMRepositoryFactory.create(llmConfig)
@@ -111,7 +123,7 @@ export class AnswerService {
       // 8. 流式生成回答（带超时控制）
       const stream = llm.streamChatCompletion(messages, {
         temperature: options.temperature ?? 0.1,
-        maxTokens: options.maxTokens ?? 500,
+        maxTokens: maxTokens,  // 使用动态计算的值
         topP: 0.9
       })
 
@@ -150,6 +162,9 @@ export class AnswerService {
 
       console.log('Answer generation completed', {
         complexity,
+        dynamicMaxTokens,
+        userSpecifiedMaxTokens: options.maxTokens,
+        finalMaxTokens: maxTokens,
         provider: llmConfig.provider,
         elapsed: `${elapsed}ms`,
         firstChunkLatency: `${firstChunkLatency}ms`,
@@ -178,22 +193,52 @@ export class AnswerService {
   }
 
   /**
-   * 评估问题复杂度
-   * 简单规则：长度、关键词
+   * 评估问题复杂度（增强版）
    * 
    * @param query 用户问题
    * @returns 复杂度等级
    */
   private assessComplexity(query: string): 'simple' | 'complex' {
-    // 简单规则判断
-    const complexKeywords = ['分析', '对比', '比较', '详细', '深入', '为什么', '如何']
+    // 1. 复杂问题关键词（扩展列表）
+    const complexKeywords = [
+      '分析', '对比', '比较', '详细', '深入', 
+      '为什么', '如何', '解释', '原理', '机制',
+      '优缺点', '区别', '评估', '总结'
+    ]
+    
     const hasComplexKeyword = complexKeywords.some(kw => query.includes(kw))
-
-    if (query.length > 50 || hasComplexKeyword) {
+    
+    // 2. 长度判断 (阈值: 40字符)
+    const isLong = query.length > 40
+    
+    // 3. 多个问号判断
+    const questionMarkCount = (query.match(/？|\?/g) || []).length
+    const hasMultipleQuestions = questionMarkCount > 1
+    
+    // 4. 包含列表或编号
+    const hasListIndicators = /[1-9]\.|[一二三四五]、|•|·/.test(query)
+    
+    // 综合判断
+    if (hasComplexKeyword || isLong || hasMultipleQuestions || hasListIndicators) {
       return 'complex'
     }
-
+    
     return 'simple'
+  }
+
+  /**
+   * 根据复杂度计算合适的 maxTokens
+   * 
+   * @param complexity 问题复杂度
+   * @returns 建议的 maxTokens
+   */
+  private calculateMaxTokens(complexity: 'simple' | 'complex'): number {
+    const TOKEN_CONFIG = {
+      simple: 300,   // 简单问题: 简短回答
+      complex: 500   // 复杂问题: 详细回答
+    }
+    
+    return TOKEN_CONFIG[complexity]
   }
 
   /**

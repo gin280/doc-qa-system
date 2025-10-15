@@ -678,22 +678,278 @@ describe('AnswerService', () => {
       )
     })
 
-    it('应该使用默认参数（temperature=0.1, maxTokens=500）', async () => {
+    it('应该使用默认参数（temperature=0.1）和动态 maxTokens', async () => {
       async function* mockGenerator() {
         yield 'answer'
       }
       mockStreamChatCompletion.mockReturnValue(mockGenerator())
 
+      // 简单问题应该使用动态计算的 300
       for await (const _ of service.generateAnswer('test', mockRetrieval, null)) {}
 
       expect(mockStreamChatCompletion).toHaveBeenCalledWith(
         expect.any(Array),
         expect.objectContaining({
           temperature: 0.1,
-          maxTokens: 500,
+          maxTokens: 300,  // 动态计算：简单问题使用 300
           topP: 0.9
         })
       )
+    })
+  })
+
+  // ==================== Story 4.9: 动态 maxTokens 测试 ====================
+  describe('Story 4.9 - Dynamic maxTokens', () => {
+    beforeEach(() => {
+      mockGetConversationHistory.mockResolvedValue([])
+    })
+
+    describe('calculateMaxTokens', () => {
+      it('应该为简单问题返回 300', () => {
+        const maxTokens = service['calculateMaxTokens']('simple')
+        expect(maxTokens).toBe(300)
+      })
+      
+      it('应该为复杂问题返回 500', () => {
+        const maxTokens = service['calculateMaxTokens']('complex')
+        expect(maxTokens).toBe(500)
+      })
+    })
+    
+    describe('assessComplexity - Enhanced', () => {
+      it('应该识别简单问题', () => {
+        expect(service['assessComplexity']('什么是Redis?')).toBe('simple')
+        expect(service['assessComplexity']('定义微服务')).toBe('simple')
+        expect(service['assessComplexity']('AI是什么')).toBe('simple')
+      })
+      
+      it('应该识别复杂问题 - 关键词', () => {
+        expect(service['assessComplexity']('详细分析Redis的优缺点')).toBe('complex')
+        expect(service['assessComplexity']('对比Redis和Memcached')).toBe('complex')
+        expect(service['assessComplexity']('如何实现微服务')).toBe('complex')
+        expect(service['assessComplexity']('为什么选择TypeScript')).toBe('complex')
+        expect(service['assessComplexity']('解释Docker原理')).toBe('complex')
+      })
+      
+      it('应该识别复杂问题 - 长度', () => {
+        const longQuery = '在微服务架构中，如何确保数据一致性和服务间通信的可靠性，同时还要保证系统的高可用性？'
+        expect(service['assessComplexity'](longQuery)).toBe('complex')
+        expect(longQuery.length).toBeGreaterThan(40)
+      })
+      
+      it('应该识别复杂问题 - 多个问号', () => {
+        const multiQuestion = '什么是Docker？它解决了什么问题？'
+        expect(service['assessComplexity'](multiQuestion)).toBe('complex')
+        
+        const multiQuestionEn = 'What is Docker? What problems does it solve?'
+        expect(service['assessComplexity'](multiQuestionEn)).toBe('complex')
+      })
+      
+      it('应该识别复杂问题 - 包含列表', () => {
+        expect(service['assessComplexity']('请列举：1. Redis的特点')).toBe('complex')
+        expect(service['assessComplexity']('包括以下内容：一、基础知识')).toBe('complex')
+        expect(service['assessComplexity']('分为几个部分：• 第一部分')).toBe('complex')
+      })
+
+      it('应该正确处理边界情况 - 正好40字符', () => {
+        const exactly40 = 'A'.repeat(40)
+        expect(exactly40.length).toBe(40)
+        expect(service['assessComplexity'](exactly40)).toBe('simple')
+        
+        const exactly41 = 'A'.repeat(41)
+        expect(exactly41.length).toBe(41)
+        expect(service['assessComplexity'](exactly41)).toBe('complex')
+      })
+
+      it('应该正确处理边界情况 - 只有一个问号', () => {
+        expect(service['assessComplexity']('什么是AI？')).toBe('simple')
+        expect(service['assessComplexity']('What is AI?')).toBe('simple')
+      })
+    })
+    
+    describe('generateAnswer - Dynamic maxTokens Integration', () => {
+      it('应该为简单问题使用 300 maxTokens', async () => {
+        const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+        
+        async function* mockGenerator() {
+          yield 'test'
+        }
+        mockStreamChatCompletion.mockReturnValue(mockGenerator())
+        
+        const simpleQuery = "什么是Redis?"
+        
+        for await (const _ of service.generateAnswer(
+          simpleQuery,
+          mockRetrieval,
+          null
+        )) {}
+        
+        // 验证 LLM 调用参数
+        expect(mockStreamChatCompletion).toHaveBeenCalledWith(
+          expect.any(Array),
+          expect.objectContaining({
+            maxTokens: 300  // ✅ 简单问题使用 300
+          })
+        )
+
+        // 验证日志
+        const logCall = consoleSpy.mock.calls.find(call => call[0] === 'Dynamic token allocation')
+        expect(logCall).toBeDefined()
+        expect(logCall[1]).toMatchObject({
+          complexity: 'simple',
+          dynamicMaxTokens: 300,
+          userSpecified: undefined,
+          finalMaxTokens: 300
+        })
+
+        consoleSpy.mockRestore()
+      })
+      
+      it('应该为复杂问题使用 500 maxTokens', async () => {
+        const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+        
+        async function* mockGenerator() {
+          yield 'test'
+        }
+        mockStreamChatCompletion.mockReturnValue(mockGenerator())
+        
+        const complexQuery = "详细分析Redis和Memcached的优缺点"
+        
+        for await (const _ of service.generateAnswer(
+          complexQuery,
+          mockRetrieval,
+          null
+        )) {}
+        
+        expect(mockStreamChatCompletion).toHaveBeenCalledWith(
+          expect.any(Array),
+          expect.objectContaining({
+            maxTokens: 500  // ✅ 复杂问题使用 500
+          })
+        )
+
+        // 验证日志
+        const logCall = consoleSpy.mock.calls.find(call => call[0] === 'Dynamic token allocation')
+        expect(logCall[1]).toMatchObject({
+          complexity: 'complex',
+          dynamicMaxTokens: 500,
+          userSpecified: undefined,
+          finalMaxTokens: 500
+        })
+
+        consoleSpy.mockRestore()
+      })
+      
+      it('应该优先使用用户指定的 maxTokens', async () => {
+        const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+        
+        async function* mockGenerator() {
+          yield 'test'
+        }
+        mockStreamChatCompletion.mockReturnValue(mockGenerator())
+        
+        const simpleQuery = "什么是Redis?"
+        
+        for await (const _ of service.generateAnswer(
+          simpleQuery,
+          mockRetrieval,
+          null,
+          { maxTokens: 800 }  // 用户指定
+        )) {}
+        
+        expect(mockStreamChatCompletion).toHaveBeenCalledWith(
+          expect.any(Array),
+          expect.objectContaining({
+            maxTokens: 800  // ✅ 使用用户指定值
+          })
+        )
+
+        // 验证日志显示了覆盖逻辑
+        const logCall = consoleSpy.mock.calls.find(call => call[0] === 'Dynamic token allocation')
+        expect(logCall[1]).toMatchObject({
+          complexity: 'simple',
+          dynamicMaxTokens: 300,  // 动态计算的值
+          userSpecified: 800,      // 用户指定的值
+          finalMaxTokens: 800      // 最终使用用户指定的值
+        })
+
+        consoleSpy.mockRestore()
+      })
+
+      it('应该在完成日志中包含 tokens 信息', async () => {
+        const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+        
+        async function* mockGenerator() {
+          yield 'answer'
+        }
+        mockStreamChatCompletion.mockReturnValue(mockGenerator())
+
+        const simpleQuery = "什么是AI?"
+        
+        for await (const _ of service.generateAnswer(
+          simpleQuery,
+          mockRetrieval,
+          null
+        )) {}
+
+        // 验证完成日志包含新字段
+        const completionLog = consoleSpy.mock.calls.find(call => call[0] === 'Answer generation completed')
+        expect(completionLog).toBeDefined()
+        expect(completionLog[1]).toMatchObject({
+          complexity: 'simple',
+          dynamicMaxTokens: 300,
+          userSpecifiedMaxTokens: undefined,
+          finalMaxTokens: 300,
+          provider: expect.any(String),
+          elapsed: expect.stringMatching(/\d+ms/),
+          firstChunkLatency: expect.stringMatching(/\d+ms/),
+          totalChunks: 1,
+          queryLength: expect.any(Number),
+          chunksUsed: expect.any(Number)
+        })
+
+        consoleSpy.mockRestore()
+      })
+
+      it('应该为复杂问题正确记录所有 tokens 信息', async () => {
+        const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+        
+        async function* mockGenerator() {
+          yield 'detailed'
+          yield ' '
+          yield 'answer'
+        }
+        mockStreamChatCompletion.mockReturnValue(mockGenerator())
+
+        const complexQuery = "请详细对比TypeScript和JavaScript的优缺点，并说明适用场景"
+        
+        for await (const _ of service.generateAnswer(
+          complexQuery,
+          mockRetrieval,
+          null
+        )) {}
+
+        // 验证动态分配日志
+        const allocationLog = consoleSpy.mock.calls.find(call => call[0] === 'Dynamic token allocation')
+        expect(allocationLog[1]).toMatchObject({
+          complexity: 'complex',
+          dynamicMaxTokens: 500,
+          userSpecified: undefined,
+          finalMaxTokens: 500
+        })
+
+        // 验证完成日志
+        const completionLog = consoleSpy.mock.calls.find(call => call[0] === 'Answer generation completed')
+        expect(completionLog[1]).toMatchObject({
+          complexity: 'complex',
+          dynamicMaxTokens: 500,
+          userSpecifiedMaxTokens: undefined,
+          finalMaxTokens: 500,
+          totalChunks: 3
+        })
+
+        consoleSpy.mockRestore()
+      })
     })
   })
 })

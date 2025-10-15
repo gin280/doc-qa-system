@@ -1,0 +1,63 @@
+schema: 1
+story: '4.9'
+story_title: 'Prompt 动态调整'
+gate: PENDING
+status_reason: '测试设计已完成，等待实现和测试执行'
+reviewer: 'Quinn (测试架构师)'
+updated: '2025-01-15T10:00:00Z'
+
+test_design:
+  scenarios_total: 16
+  by_level:
+    unit: 12
+    integration: 4
+    e2e: 0
+  by_priority:
+    p0: 10
+    p1: 4
+    p2: 2
+  coverage_gaps: []  # 所有 AC 都有充分覆盖
+
+top_issues: []  # 实现后更新
+waiver: { active: false }
+
+# 测试设计引用
+planning_ref: 'docs/qa/assessments/4.9-test-design-20250115.md'
+
+# 预期质量指标
+quality_targets:
+  test_coverage: '≥90%'
+  performance_improvement: '简单问题响应时间 ↓30%'
+  token_efficiency: '简单问题 token 使用 ↓40%'
+  
+# 关键测试场景
+critical_scenarios:
+  - id: '4.9-UNIT-003'
+    description: '简单问题使用 300 tokens'
+    priority: P0
+  - id: '4.9-UNIT-004'
+    description: '复杂问题使用 500 tokens'
+    priority: P0
+  - id: '4.9-UNIT-005'
+    description: '用户指定值优先'
+    priority: P0
+  - id: '4.9-INT-001'
+    description: '完整问答流程集成'
+    priority: P0
+  - id: '4.9-INT-004'
+    description: '性能目标验证'
+    priority: P1
+
+# 风险评估
+risk_summary:
+  totals:
+    critical: 0
+    high: 0
+    medium: 2  # 复杂度判断不准确、向后兼容性
+    low: 3     # 简单回答过短、性能未达标、日志缺失
+  recommendations:
+    must_fix: []
+    monitor:
+      - '监控简单问题的实际 token 生成数，确保 300 足够'
+      - '监控复杂度判断准确率，必要时调整算法'
+
