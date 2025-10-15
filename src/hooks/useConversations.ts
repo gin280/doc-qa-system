@@ -1,6 +1,7 @@
 // src/hooks/useConversations.ts
 import useSWR from 'swr'
 import { toast } from 'sonner'
+import { getErrorMessage } from '@/types/errors'
 
 /**
  * 对话对象
@@ -23,7 +24,7 @@ export interface ConversationMessage {
   conversationId: string
   role: 'USER' | 'ASSISTANT'
   content: string
-  citations: any
+  citations: unknown
   tokenCount: number
   createdAt: string
 }
@@ -137,8 +138,9 @@ export async function deleteConversation(conversationId: string) {
 
     toast.success('对话已删除')
     return await res.json()
-  } catch (error: any) {
-    toast.error(error.message || '删除对话失败')
+  } catch (error: unknown) {
+    const errorMessage = getErrorMessage(error)
+    toast.error(errorMessage)
     throw error
   }
 }

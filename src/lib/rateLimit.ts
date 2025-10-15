@@ -22,7 +22,7 @@ const redis = new Redis({
  */
 export const uploadRateLimit = new Ratelimit({
   redis,
-  limiter: Ratelimit.slidingWindow(10, '1 m'),
+  limiter: Ratelimit.slidingWindow(1, '1 m'),
   analytics: true,
   prefix: 'ratelimit:upload',
   // Timeout to prevent hanging requests

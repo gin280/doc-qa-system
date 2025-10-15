@@ -7,6 +7,7 @@
 
 import { useState, useCallback } from 'react'
 import { v4 as uuidv4 } from 'uuid'
+import { getErrorMessage } from '@/types/errors'
 
 /**
  * 消息对象
@@ -162,9 +163,9 @@ export function useChat(documentId?: string): UseChatReturn {
           : msg
       ))
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Send message error:', err)
-      const errorMessage = err.message || '发送失败，请重试'
+      const errorMessage = getErrorMessage(err)
       setError(errorMessage)
       
       // 标记用户消息为错误状态
@@ -221,10 +222,21 @@ export function useChat(documentId?: string): UseChatReturn {
         throw new Error('加载对话失败')
       }
 
-      const data = await res.json()
+      interface ApiMessage {
+        id: string
+        role: string
+        content: string
+        createdAt: string
+      }
+
+      interface ConversationData {
+        messages: ApiMessage[]
+      }
+
+      const data = await res.json() as ConversationData
       
       // 转换消息格式
-      const loadedMessages: Message[] = data.messages.map((msg: any) => ({
+      const loadedMessages: Message[] = data.messages.map((msg) => ({
         id: msg.id,
         role: msg.role.toLowerCase() as 'user' | 'assistant',
         content: msg.content,
@@ -234,9 +246,9 @@ export function useChat(documentId?: string): UseChatReturn {
 
       setConversationId(convId)
       setMessages(loadedMessages)
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Load conversation error:', err)
-      const errorMessage = err.message || '加载对话失败'
+      const errorMessage = getErrorMessage(err)
       setError(errorMessage)
     } finally {
       setIsLoadingHistory(false)

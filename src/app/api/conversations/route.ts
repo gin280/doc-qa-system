@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { conversations, documents } from '@/drizzle/schema'
 import { eq, desc, and, sql, ilike } from 'drizzle-orm'
+import { getErrorMessage } from '@/types/errors'
 
 /**
  * GET /api/conversations
@@ -91,10 +92,9 @@ export async function GET(req: NextRequest) {
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Conversations API] Failed to get conversations', {
-      error: error.message,
-      stack: error.stack
+      error: getErrorMessage(error)
     })
 
     return NextResponse.json(

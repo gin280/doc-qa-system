@@ -10,6 +10,7 @@ import { generateExportFilename, generateBatchExportFolderName } from '@/service
 import { rateLimiter, RATE_LIMITS } from '@/lib/rateLimit'
 import type { ConversationExportData } from '@/services/export/markdownExporter'
 import type { ExportFile } from '@/services/export/zipGenerator'
+import { getErrorMessage } from '@/types/errors'
 
 interface BatchExportRequest {
   conversationIds: string[]
@@ -118,7 +119,7 @@ export async function POST(req: NextRequest) {
             id: msg.id,
             role: msg.role,
             content: msg.content,
-            citations: msg.citations ? (msg.citations as any[]) : undefined,
+            citations: Array.isArray(msg.citations) ? msg.citations : undefined,
             createdAt: msg.createdAt
           }))
         }
@@ -169,10 +170,9 @@ export async function POST(req: NextRequest) {
       }
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Export API] Batch export failed', {
-      error: error.message,
-      stack: error.stack
+      error: getErrorMessage(error)
     })
 
     return NextResponse.json(

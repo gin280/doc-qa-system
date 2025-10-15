@@ -8,6 +8,7 @@ import { generateMarkdownExport } from '@/services/export/markdownExporter'
 import { generateExportFilename } from '@/services/export/exportFormatter'
 import { rateLimiter, RATE_LIMITS } from '@/lib/rateLimit'
 import type { ConversationExportData } from '@/services/export/markdownExporter'
+import { getErrorMessage } from '@/types/errors'
 
 /**
  * GET /api/conversations/:id/export?format=markdown|pdf
@@ -98,7 +99,7 @@ export async function GET(
         id: msg.id,
         role: msg.role,
         content: msg.content,
-        citations: msg.citations ? (msg.citations as any[]) : undefined,
+        citations: Array.isArray(msg.citations) ? msg.citations : undefined,
         createdAt: msg.createdAt
       }))
     }
@@ -128,11 +129,10 @@ export async function GET(
       headers: responseHeaders
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Export API] Failed to export conversation', {
-      error: error.message,
-      conversationId: params.id,
-      stack: error.stack
+      error: getErrorMessage(error),
+      conversationId: params.id
     })
 
     return NextResponse.json(

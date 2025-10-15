@@ -180,7 +180,20 @@ export function useDocumentUpload() {
           try {
             const errorResponse = JSON.parse(xhr.responseText)
             errorMessage = errorResponse.error || errorMessage
-            errorDetails = errorResponse.details || ''
+            
+            // Story 4.1: 处理429速率限制响应的details对象
+            if (errorResponse.details && typeof errorResponse.details === 'object') {
+              // 格式化速率限制详情为用户友好的消息
+              const { retryAfter, resetAt } = errorResponse.details
+              if (retryAfter) {
+                errorDetails = `请在 ${retryAfter} 秒后重试`
+              } else if (resetAt) {
+                errorDetails = `请稍后重试`
+              }
+            } else {
+              errorDetails = errorResponse.details || ''
+            }
+            
             console.error('[Upload] Server error:', errorResponse)
           } catch {
             // 非JSON响应

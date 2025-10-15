@@ -224,7 +224,7 @@ export function EmptyState({ selectedDocument, onExampleClick, onUploadClick }: 
           </div>
           <h2 className="text-2xl font-bold">向文档提问</h2>
           <p className="text-muted-foreground">
-            已选择: <span className="font-medium text-foreground">{selectedDocument.name}</span>
+            已选择: <span className="font-medium text-foreground">{selectedDocument?.name || '未知文档'}</span>
           </p>
         </div>
 

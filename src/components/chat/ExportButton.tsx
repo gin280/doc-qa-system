@@ -8,14 +8,14 @@ import { toast } from 'sonner'
 
 interface ExportButtonProps {
   conversationId: string
-  conversationTitle: string
+  conversationTitle?: string
   className?: string
 }
 
 /**
  * 对话导出按钮 - 仅支持 Markdown 格式
  */
-export function ExportButton({ conversationId, conversationTitle, className }: ExportButtonProps) {
+export function ExportButton({ conversationId, conversationTitle = '对话记录', className }: ExportButtonProps) {
   const [isExporting, setIsExporting] = useState(false)
 
   const handleExport = async () => {

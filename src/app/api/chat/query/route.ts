@@ -16,6 +16,7 @@ import { QueryVectorizationError } from '@/services/rag/queryVectorizer'
 import { answerService } from '@/services/rag/answerService'
 import { conversationService } from '@/services/chat/conversationService'
 import { usageService } from '@/services/user/usageService'
+import { getErrorMessage as getErrorMessageUtil } from '@/types/errors'
 
 /**
  * POST /api/chat/query
@@ -266,18 +267,19 @@ export async function POST(req: NextRequest) {
 
           controller.close()
 
-        } catch (error: any) {
+        } catch (error: unknown) {
           const generationTime = Date.now() - generationStartTime
+          const errorMsg = getErrorMessageUtil(error)
           
           // 监控日志：生成失败
           console.error('[MONITOR] LLM generation failed:', {
             timestamp: new Date().toISOString(),
             userId: session.user.id,
             conversationId: currentConversationId,
-            error: error.message,
+            error: errorMsg,
             generationTimeMs: generationTime,
-            errorType: error.message.includes('timeout') ? 'TIMEOUT' : 
-                       error.message.includes('quota') ? 'QUOTA' : 'UNKNOWN'
+            errorType: errorMsg.includes('timeout') ? 'TIMEOUT' : 
+                       errorMsg.includes('quota') ? 'QUOTA' : 'UNKNOWN'
           })
           
           // 流式错误处理
@@ -420,8 +422,8 @@ function handleRetrievalError(error: unknown): NextResponse {
 /**
  * 错误消息映射（用于流式响应）
  */
-function getErrorMessage(error: any): string {
-  const message = error?.message || String(error)
+function getErrorMessage(error: unknown): string {
+  const message = getErrorMessageUtil(error)
   
   switch (message) {
     case 'GENERATION_TIMEOUT':

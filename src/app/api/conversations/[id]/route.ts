@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { conversations, messages, documents } from '@/drizzle/schema'
 import { eq, and, asc } from 'drizzle-orm'
+import { getErrorMessage } from '@/types/errors'
 
 /**
  * GET /api/conversations/:id
@@ -70,11 +71,10 @@ export async function GET(
       messages: messageList
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Conversation API] Failed to get conversation', {
-      error: error.message,
-      conversationId: params.id,
-      stack: error.stack
+      error: getErrorMessage(error),
+      conversationId: params.id
     })
 
     return NextResponse.json(
@@ -134,11 +134,10 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Conversation API] Failed to delete conversation', {
-      error: error.message,
-      conversationId: params.id,
-      stack: error.stack
+      error: getErrorMessage(error),
+      conversationId: params.id
     })
 
     return NextResponse.json(
