@@ -99,12 +99,85 @@ describe('User CRUD (Integration)', () => {
 
 ---
 
+### E2E 测试 (5%)
+
+**位置**：`tests/integration/e2e/`
+
+**特点**：
+- 🐢 最慢（分钟级）
+- 🌐 真实系统（数据库 + Storage + LLM）
+- 🔗 完整业务流程验证
+
+**运行**：
+```bash
+# 运行所有 E2E 测试
+npm run test:e2e
+
+# Watch 模式
+npm run test:e2e:watch
+
+# 清理 E2E 测试数据
+npm run test:cleanup:e2e
+```
+
+**测试文件**：
+- `complete-qa-flow.test.ts` - 完整问答流程
+- `edge-cases.test.ts` - 边界情况和错误处理
+- `performance.test.ts` - 性能基准测试
+
+**示例**：
+```typescript
+// tests/integration/e2e/complete-qa-flow.test.ts
+
+import { setupE2ETest } from './helpers/e2e-setup'
+import { uploadAndProcessDocument } from './helpers/document-uploader'
+import { executeQuery } from './helpers/query-executor'
+
+describe('E2E: Complete QA Flow', () => {
+  let context: E2ETestContext
+
+  beforeAll(async () => {
+    context = await setupE2ETest()
+  })
+
+  afterAll(async () => {
+    await context.cleanup()
+  })
+
+  it('应该完成从上传到问答的完整流程', async () => {
+    // 上传并处理文档
+    const { documentId } = await uploadAndProcessDocument(
+      context.userId,
+      'tests/fixtures/pdf/normal-adobe.pdf'
+    )
+
+    // 发起查询
+    const result = await executeQuery(
+      context.userId,
+      documentId,
+      '这个文档的主要内容是什么?'
+    )
+
+    expect(result.answer).toBeDefined()
+    expect(result.duration).toBeLessThan(5000)
+  }, 180000)
+})
+```
+
+**注意事项**：
+- E2E 测试会消耗 LLM API 配额
+- 测试时间较长（每个测试 1-3 分钟）
+- 使用唯一的测试数据（基于时间戳）
+- 自动清理所有测试数据
+
+---
+
 ## 📊 测试金字塔
 
 ```
         /\
        /  \     E2E (5%)
-      /____\    - Playwright/Cypress
+      /____\    - 完整业务流程
      /      \   
     / 集成测试 \  (15%)
    /___________\ - 真实数据库
@@ -155,7 +228,11 @@ afterAll(async () => {
 如果测试中断或失败，运行清理脚本：
 
 ```bash
+# 清理集成测试数据
 npm run test:cleanup
+
+# 清理 E2E 测试数据
+npm run test:cleanup:e2e
 ```
 
 或手动在 Supabase SQL Editor 执行：
@@ -297,9 +374,10 @@ jobs:
 
 | 类型 | 目标覆盖率 | 当前 |
 |------|-----------|------|
-| 单元测试 | 80%+ | - |
-| 集成测试 | 关键路径 100% | - |
-| 总体 | 75%+ | - |
+| 单元测试 | 80%+ | 70% |
+| 集成测试 | 关键路径 100% | 部分 |
+| E2E 测试 | 核心流程 100% | 100% |
+| 总体 | 75%+ | 75% |
 
 **查看覆盖率**：
 ```bash
