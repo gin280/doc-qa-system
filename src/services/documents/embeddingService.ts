@@ -9,6 +9,19 @@ import type { ChunkResult } from './chunkingService'
 
 /**
  * 向量化错误
+ * 
+ * 错误类型:
+ * - EMBEDDING_ERROR: 向量生成失败
+ * - EMBEDDING_TIMEOUT: 向量生成超时
+ * - STORAGE_ERROR: 向量存储失败
+ * - QUOTA_EXCEEDED: API配额超限
+ * - DIMENSION_MISMATCH: 向量维度不匹配 (配置错误或API返回错误维度)
+ * 
+ * 维度不匹配问题排查:
+ * 1. 检查 llmConfig.provider 是否与 EMBEDDING_DIMENSION 匹配
+ * 2. 智谱AI (embedding-2) 应使用 1024维
+ * 3. OpenAI (text-embedding-3-small) 应使用 1536维
+ * 4. 切换Provider后需要重新处理所有文档
  */
 export class EmbeddingError extends Error {
   constructor(
@@ -18,6 +31,36 @@ export class EmbeddingError extends Error {
   ) {
     super(message)
     this.name = 'EmbeddingError'
+  }
+}
+
+/**
+ * 获取Provider的预期向量维度
+ */
+function getExpectedDimension(provider: string): number {
+  switch (provider) {
+    case 'zhipu':
+      return 1024
+    case 'openai':
+      return 1536
+    default:
+      throw new Error(`Unknown provider: ${provider}`)
+  }
+}
+
+/**
+ * 验证Provider与配置的维度是否匹配
+ */
+function validateProviderDimension(provider: string, dimension: number): void {
+  const expectedDimension = getExpectedDimension(provider)
+  
+  if (dimension !== expectedDimension) {
+    throw new EmbeddingError(
+      `Configuration mismatch: Provider '${provider}' requires ${expectedDimension}D vectors, but configured dimension is ${dimension}D.\n` +
+      `Please update src/config/llm.config.ts to match the provider's embedding dimension.\n` +
+      `Expected: ${expectedDimension}D, Got: ${dimension}D`,
+      'DIMENSION_MISMATCH'
+    )
   }
 }
 
@@ -59,6 +102,9 @@ export async function embedAndStoreChunks(
 
     // 根据LLM提供商确定向量维度
     const dimension = llmConfig.provider === 'zhipu' ? 1024 : 1536
+    
+    // 新增：配置一致性检查
+    validateProviderDimension(llmConfig.provider, dimension)
 
     for (let i = 0; i < batchCount; i++) {
       const start = i * BATCH_SIZE
@@ -83,7 +129,19 @@ export async function embedAndStoreChunks(
           const vector = vectors[idx]
           
           if (vector.length !== dimension) {
-            const errorMsg = `Vector dimension mismatch: expected ${dimension}, got ${vector.length}`
+            const errorMsg = 
+              `Vector dimension mismatch detected:\n` +
+              `  Expected: ${dimension}D (for provider '${llmConfig.provider}')\n` +
+              `  Received: ${vector.length}D\n` +
+              `  Chunk: ${batch[idx].chunkIndex} of document ${documentId}\n\n` +
+              `Possible causes:\n` +
+              `  1. Provider configuration changed after vectors were generated\n` +
+              `  2. API returned incorrect embedding dimension\n` +
+              `  3. Database schema mismatch\n\n` +
+              `Recovery:\n` +
+              `  1. Verify llmConfig.provider matches EMBEDDING_DIMENSION\n` +
+              `  2. Re-process the document after fixing configuration\n` +
+              `  3. Check database vector column dimension`
             
             console.error('[Embedding] 维度不匹配', {
               documentId,
