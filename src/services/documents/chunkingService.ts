@@ -4,6 +4,12 @@ import { documents, documentChunks } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 
 /**
+ * 最大chunks数量限制
+ * 超过此限制会截断并告警
+ */
+const MAX_CHUNKS = 10000
+
+/**
  * 分块错误
  */
 export class ChunkingError extends Error {
@@ -59,11 +65,18 @@ export async function chunkDocument(
     const metadata = document.metadata as Record<string, any> | null
     const parsedContent = metadata?.content as string
     
+    // 检查内容是否存在
     if (!parsedContent) {
-      throw new ChunkingError('文档未解析或内容为空')
+      throw new ChunkingError('文档未解析')
     }
 
-    console.log(`[Chunking] Document ${documentId}: 开始分块, 文本长度=${parsedContent.length}字符`)
+    // 检查内容是否为空或仅包含空白字符
+    const trimmedContent = parsedContent.trim()
+    if (trimmedContent.length === 0) {
+      throw new ChunkingError('文档内容为空，无法处理')
+    }
+
+    console.log(`[Chunking] Document ${documentId}: 开始分块, 文本长度=${trimmedContent.length}字符`)
 
     // 5. 配置分块器
     const splitter = new RecursiveCharacterTextSplitter({
@@ -80,24 +93,56 @@ export async function chunkDocument(
     })
     
     // 6. 执行分块
-    const chunks = await splitter.createDocuments([parsedContent])
+    let allChunks = await splitter.createDocuments([trimmedContent])
+    const originalChunksCount = allChunks.length
     
-    console.log(`[Chunking] 分块完成: ${chunks.length}个chunks`)
+    console.log(`[Chunking] 分块完成: ${originalChunksCount}个chunks`)
 
-    // 7. 保存到数据库
+    // 7. 检查是否超过最大限制
+    let truncated = false
+    if (originalChunksCount > MAX_CHUNKS) {
+      console.warn('[Chunking] 文档超过最大chunks限制', {
+        documentId,
+        originalChunksCount,
+        maxChunks: MAX_CHUNKS,
+        action: '截断到10000'
+      })
+      
+      allChunks = allChunks.slice(0, MAX_CHUNKS) // 截断
+      truncated = true
+    }
+
+    // 8. 保存到数据库
     const chunkRecords = await db.insert(documentChunks).values(
-      chunks.map((chunk, index) => ({
+      allChunks.map((chunk, index) => ({
         documentId,
         chunkIndex: index,
         content: chunk.pageContent,
         embeddingId: '', // 稍后由embeddingService填充
         metadata: {
           length: chunk.pageContent.length,
+          ...(truncated ? { truncated: true } : {})
         }
       }))
     ).returning()
+
+    // 9. 如果截断，在文档metadata中记录
+    if (truncated) {
+      await db.update(documents)
+        .set({
+          metadata: {
+            ...metadata,
+            chunking: {
+              truncated: true,
+              originalChunksCount,
+              storedChunksCount: MAX_CHUNKS
+            }
+          }
+        })
+        .where(eq(documents.id, documentId))
+    }
     
-    // 8. 返回分块结果
+    // 10. 返回分块结果
     return chunkRecords.map(record => ({
       id: record.id,
       chunkIndex: record.chunkIndex,
@@ -106,12 +151,31 @@ export async function chunkDocument(
     }))
 
   } catch (error) {
-    console.error('[Chunking] 错误:', error)
-
     // 获取当前文档以保留现有metadata
     const [currentDoc] = await db.select()
       .from(documents)
       .where(eq(documents.id, documentId))
+
+    // 判断错误类型
+    let errorType = 'CHUNKING_ERROR'
+    if (error instanceof ChunkingError) {
+      if (error.message.includes('文档内容为空')) {
+        errorType = 'EMPTY_CONTENT'
+      }
+    }
+
+    // 结构化错误日志
+    const errorInfo = {
+      timestamp: new Date().toISOString(),
+      documentId,
+      errorType,
+      message: error instanceof Error ? error.message : '未知错误',
+      context: {
+        documentStatus: currentDoc?.status
+      }
+    }
+    
+    console.error('[Chunking] 错误:', errorInfo)
 
     // 更新文档状态为FAILED，保留现有metadata
     await db.update(documents)
@@ -120,7 +184,7 @@ export async function chunkDocument(
         metadata: {
           ...(currentDoc?.metadata as Record<string, any> || {}),
           error: {
-            type: 'CHUNKING_ERROR',
+            type: errorType,
             message: error instanceof Error ? error.message : '未知错误',
             timestamp: new Date().toISOString()
           }

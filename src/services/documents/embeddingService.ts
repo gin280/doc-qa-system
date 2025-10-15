@@ -13,7 +13,7 @@ import type { ChunkResult } from './chunkingService'
 export class EmbeddingError extends Error {
   constructor(
     message: string,
-    public type: 'EMBEDDING_ERROR' | 'EMBEDDING_TIMEOUT' | 'STORAGE_ERROR' | 'QUOTA_EXCEEDED',
+    public type: 'EMBEDDING_ERROR' | 'EMBEDDING_TIMEOUT' | 'STORAGE_ERROR' | 'QUOTA_EXCEEDED' | 'DIMENSION_MISMATCH',
     public cause?: Error
   ) {
     super(message)
@@ -77,6 +77,26 @@ export async function embedAndStoreChunks(
         )
         
         const vectors = await Promise.race([embeddingsPromise, timeoutPromise])
+
+        // 4.1 验证向量维度
+        for (let idx = 0; idx < vectors.length; idx++) {
+          const vector = vectors[idx]
+          
+          if (vector.length !== dimension) {
+            const errorMsg = `Vector dimension mismatch: expected ${dimension}, got ${vector.length}`
+            
+            console.error('[Embedding] 维度不匹配', {
+              documentId,
+              chunkId: batch[idx].id,
+              chunkIndex: batch[idx].chunkIndex,
+              expectedDimension: dimension,
+              actualDimension: vector.length,
+              provider: llmConfig.provider
+            })
+            
+            throw new EmbeddingError(errorMsg, 'DIMENSION_MISMATCH')
+          }
+        }
 
         // 5. 准备向量文档并使用Repository批量存储
         const vectorDocuments = batch.map((chunk, idx) => ({
@@ -169,12 +189,24 @@ export async function embedAndStoreChunks(
     console.log(`[Embedding] Document ${documentId}: 向量化完成`)
 
   } catch (error) {
-    console.error('[Embedding] 错误:', error)
-
     // 获取当前文档以保留现有metadata
     const [currentDoc] = await db.select()
       .from(documents)
       .where(eq(documents.id, documentId))
+
+    // 结构化错误日志
+    const errorInfo = {
+      timestamp: new Date().toISOString(),
+      documentId,
+      errorType: error instanceof EmbeddingError ? error.type : 'EMBEDDING_ERROR',
+      message: error instanceof Error ? error.message : '未知错误',
+      context: {
+        chunksCount: chunks.length,
+        provider: llmConfig.provider
+      }
+    }
+    
+    console.error('[Embedding] 错误:', errorInfo)
 
     // 更新文档状态为FAILED，保留现有metadata
     await db.update(documents)
