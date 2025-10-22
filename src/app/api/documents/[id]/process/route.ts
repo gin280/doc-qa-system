@@ -5,6 +5,7 @@ import { documents } from '@/drizzle/schema'
 import { eq, and } from 'drizzle-orm'
 import { chunkDocument } from '@/services/documents/chunkingService'
 import { embedAndStoreChunks } from '@/services/documents/embeddingService'
+import { logger } from '@/lib/logger'
 
 /**
  * 配置Vercel函数
@@ -86,7 +87,7 @@ export async function POST(
     })
 
   } catch (error) {
-    console.error('Process error:', error)
+    logger.error({ error: error, action: 'error' }, 'Process error:')
 
     // 处理特定错误
     if (error instanceof Error) {
@@ -163,7 +164,7 @@ export async function GET(
     })
 
   } catch (error) {
-    console.error('Get process status error:', error)
+    logger.error({ error: error, action: 'error' }, 'Get process status error:')
     return NextResponse.json(
       { error: '服务器错误,请稍后重试' },
       { status: 500 }

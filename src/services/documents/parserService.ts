@@ -5,6 +5,7 @@ import { documents } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { StorageService } from './storageService'
 import { ParseResult, ParseError } from './types'
+import { logger, logDocumentParsing, logValidationWarning } from '@/lib/logger'
 
 // 重新导出 ParseError 供 API 路由使用
 export { ParseError } from './types'
@@ -113,7 +114,14 @@ export async function parseDocument(
     const cleanContent = result.content.replace(/\u0000/g, '')
     
     if (nullCharCount > 0) {
-      console.warn(`[ParseService] Document ${documentId}: 清理了 ${nullCharCount} 个null字符 (\u0000)`)
+      logValidationWarning({
+        documentId,
+        reason: 'null_chars_cleaned',
+        context: {
+          nullCharsRemoved: nullCharCount,
+          fileType: document.fileType
+        }
+      })
     }
     
     const cleanMetadata = { ...result.metadata }
@@ -122,7 +130,12 @@ export async function parseDocument(
       if (typeof cleanMetadata[key] === 'string') {
         const nullCount = (cleanMetadata[key].match(/\u0000/g) || []).length
         if (nullCount > 0) {
-          console.warn(`[ParseService] Metadata.${key}: 清理了 ${nullCount} 个null字符`)
+          logger.warn({
+            documentId,
+            field: `metadata.${key}`,
+            nullCharsRemoved: nullCount,
+            action: 'validation_warn'
+          }, `Metadata field cleaned`)
         }
         cleanMetadata[key] = cleanMetadata[key].replace(/\u0000/g, '')
       }
@@ -149,12 +162,13 @@ export async function parseDocument(
       })
       .where(eq(documents.id, documentId))
 
-    // 记录解析日志
-    console.log(`[ParseService] Successfully parsed document ${documentId}`, {
+    // 记录解析成功
+    logDocumentParsing({
+      documentId,
       fileType: document.fileType,
       contentLength: cleanContent.length,
       parseTime,
-      memoryUsed: `${(memoryUsed / 1024 / 1024).toFixed(2)}MB`
+      success: true
     })
 
     // 返回清理后的结果
@@ -187,11 +201,12 @@ export async function parseDocument(
       })
       .where(eq(documents.id, documentId))
 
-    // 记录错误日志
-    console.error(`[ParseService] Failed to parse document ${documentId}`, {
-      errorType,
-      errorMessage,
-      fileType: document.fileType
+    // 记录解析失败
+    logDocumentParsing({
+      documentId,
+      fileType: document.fileType,
+      success: false,
+      error: errorMessage
     })
 
     throw error

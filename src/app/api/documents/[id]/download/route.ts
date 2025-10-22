@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { documents } from '@/drizzle/schema'
 import { eq, and } from 'drizzle-orm'
 import { StorageService } from '@/services/documents/storageService'
+import { logger } from '@/lib/logger'
 
 export async function GET(
   req: NextRequest,
@@ -52,7 +53,7 @@ export async function GET(
     })
 
   } catch (error) {
-    console.error('Download error:', error)
+    logger.error({ error: error, action: 'error' }, 'Download error:')
     return NextResponse.json(
       { error: '获取下载链接失败' },
       { status: 500 }

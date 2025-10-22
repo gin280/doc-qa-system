@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { documents, documentChunks } from '@/drizzle/schema'
 import { eq, and, sql } from 'drizzle-orm'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/documents/[id]/chunks
@@ -79,7 +80,7 @@ export async function GET(
     })
 
   } catch (error) {
-    console.error('Get chunks error:', error)
+    logger.error({ error: error, action: 'error' }, 'Get chunks error:')
     return NextResponse.json(
       { error: '服务器错误,请稍后重试' },
       { status: 500 }

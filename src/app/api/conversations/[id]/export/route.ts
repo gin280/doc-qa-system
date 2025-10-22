@@ -9,6 +9,7 @@ import { generateExportFilename } from '@/services/export/exportFormatter'
 import { rateLimiter, RATE_LIMITS } from '@/lib/rateLimit'
 import type { ConversationExportData } from '@/services/export/markdownExporter'
 import { getErrorMessage } from '@/types/errors'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/conversations/:id/export?format=markdown|pdf
@@ -109,15 +110,14 @@ export async function GET(
     const filename = generateExportFilename(conversation.title, 'markdown')
     const contentType = 'text/markdown; charset=utf-8'
 
-    // 开发环境记录日志
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Export API] Generated markdown export', {
-        conversationId,
-        userId: session.user.id,
-        filename,
-        size: fileContent.length
-      })
-    }
+    // 记录日志
+    logger.info({
+      conversationId,
+      userId: session.user.id,
+      filename,
+      size: fileContent.length,
+      action: 'generated_markdown_export'
+    }, '[Export API] Generated markdown export')
 
     // 8. 返回文件（包含速率限制头）
     responseHeaders.set('Content-Type', contentType)
@@ -130,10 +130,10 @@ export async function GET(
     })
 
   } catch (error: unknown) {
-    console.error('[Export API] Failed to export conversation', {
+    logger.error({...{
       error: getErrorMessage(error),
       conversationId: params.id
-    })
+    }, action: 'failed_to_export_conversation_error'}, '[Export API] Failed to export conversation')
 
     return NextResponse.json(
       { error: '导出失败，请重试' },

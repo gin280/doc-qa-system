@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { users } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
+import { logger } from '@/lib/logger'
 
 // GET /api/user/profile - 获取用户信息
 export async function GET() {
@@ -33,7 +34,7 @@ export async function GET() {
 
     return NextResponse.json(user)
   } catch (error) {
-    console.error('Get profile error:', error)
+    logger.error({ error: error, action: 'error' }, 'Get profile error:')
     return NextResponse.json({ error: '获取用户信息失败' }, { status: 500 })
   }
 }
@@ -82,7 +83,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json(updatedUser)
   } catch (error) {
-    console.error('Update profile error:', error)
+    logger.error({ error: error, action: 'error' }, 'Update profile error:')
     return NextResponse.json({ error: '更新用户信息失败' }, { status: 500 })
   }
 }

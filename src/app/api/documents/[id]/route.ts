@@ -6,6 +6,7 @@ import { eq, and, sql } from 'drizzle-orm'
 import { StorageService } from '@/services/documents/storageService'
 import { VectorRepositoryFactory } from '@/infrastructure/vector/vector-repository.factory'
 import { vectorConfig } from '@/config/vector.config'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/documents/:id
@@ -46,7 +47,7 @@ export async function GET(
     })
 
   } catch (error) {
-    console.error('Get document error:', error)
+    logger.error({ error: error, action: 'error' }, 'Get document error:')
     return NextResponse.json(
       { error: '服务器错误' },
       { status: 500 }
@@ -126,7 +127,7 @@ export async function PATCH(
     })
 
   } catch (error) {
-    console.error('Update document error:', error)
+    logger.error({ error: error, action: 'error' }, 'Update document error:')
     return NextResponse.json(
       { error: '服务器错误' },
       { status: 500 }
@@ -149,7 +150,13 @@ async function retryOperation<T>(
       return { success: true, result }
     } catch (error) {
       const isLastAttempt = attempt === maxRetries
-      console.error(`${operationName} failed (attempt ${attempt}/${maxRetries}):`, error)
+      logger.error({ 
+        error, 
+        operationName, 
+        attempt, 
+        maxRetries, 
+        action: 'retry_operation_failed' 
+      }, `${operationName} failed (attempt ${attempt}/${maxRetries})`)
       
       if (isLastAttempt) {
         return { 
@@ -231,7 +238,7 @@ export async function DELETE(
       deletionResults.vectors = vectorResult.success
       
       if (!vectorResult.success) {
-        console.error('Vector deletion failed after retries:', vectorResult.error)
+        logger.error({ error: vectorResult.error, action: 'error' }, 'Vector deletion failed after retries:')
         // 继续但记录失败，后台任务可以清理孤儿向量
         // TODO: 在生产环境中，应该将失败记录到清理队列
       }
@@ -249,7 +256,7 @@ export async function DELETE(
     deletionResults.storage = storageResult.success
     
     if (!storageResult.success) {
-      console.error('Storage deletion failed after retries:', storageResult.error)
+      logger.error({ error: storageResult.error, action: 'error' }, 'Storage deletion failed after retries:')
       // 继续但记录失败
       // TODO: 将失败的storagePath记录到孤儿文件清理队列
     }
@@ -284,7 +291,7 @@ export async function DELETE(
       
       deletionResults.database = true
     } catch (dbError) {
-      console.error('Database deletion failed:', dbError)
+      logger.error({ error: dbError, action: 'error' }, 'Database deletion failed:')
       return NextResponse.json(
         { 
           error: '数据库删除失败',
@@ -316,7 +323,7 @@ export async function DELETE(
     return NextResponse.json(response)
 
   } catch (error) {
-    console.error('Unexpected delete error:', error)
+    logger.error({ error: error, action: 'error' }, 'Unexpected delete error:')
     return NextResponse.json(
       { 
         error: '删除文档失败',

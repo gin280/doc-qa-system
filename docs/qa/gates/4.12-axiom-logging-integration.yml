@@ -1,0 +1,235 @@
+schema: 1
+story: '4.12'
+story_title: 'Axiom 日志集成'
+gate: CONCERNS
+status_reason: '核心功能完成 (console 清除),但单元测试有 6/25 失败 (测试期望与实现不匹配),修复预估 30 分钟'
+reviewer: 'Quinn (测试架构师)'
+updated: '2025-01-15T16:00:00Z'
+
+top_issues:
+  - id: 'MNT-001'
+    severity: high
+    finding: '[RESOLVED] API Routes 层 (src/app/api/) 仍有 19 个文件使用 console 日志,违反 AC3 "100% 消除 console" 承诺'
+    suggested_action: '✅ 已修复: 19 个文件已完成日志迁移,0 个 console 残留'
+    suggested_owner: 'dev'
+    resolved: true
+
+  - id: 'TEST-001'
+    severity: medium
+    finding: '单元测试已创建 (tests/unit/lib/logger.test.ts,25 个测试),但 6/25 测试失败 (24% 失败率),原因是测试期望与实现不匹配'
+    suggested_action: '修复测试用例: 1) sanitizeEmail 空字符串处理 2) logError 函数签名 (3 参数 → 2 参数),预估 30 分钟'
+    suggested_owner: 'dev'
+
+  - id: 'OPS-001'
+    severity: medium
+    finding: '手动配置任务未完成: Axiom 账号注册、API Token 生成、Dashboard 配置、告警规则、运维文档未创建'
+    suggested_action: '完成 Task 1 (Axiom 注册+Token), Task 4 (Dashboard+告警), Task 6 (运维文档),标记为 "Blocked - 待用户完成" (预估 4-6h 手动工作)'
+    suggested_owner: 'po'
+
+  - id: 'MNT-002'
+    severity: low
+    finding: 'Frontend 组件 (src/components/, src/hooks/) 仍有 ~20 处 console 调用,前端错误无法集中监控'
+    suggested_action: '考虑创建前端专用 logger 或继续使用 Sentry (可选,低优先级)'
+    suggested_owner: 'dev'
+
+waiver:
+  active: false
+
+# Extended fields
+quality_score: 80  # 100 - (10×1 MEDIUM TEST CONCERNS) - (5×1 MEDIUM OPS) - (5×1 LOW) = 80
+expires: '2025-01-29T23:59:59Z'  # 2 weeks from review
+
+evidence:
+  code_reviewed:
+    - 'src/lib/logger.ts - Logger 核心实现 ✅'
+    - 'src/services/ - 70+ logger 调用,Services 层 100% 完成 ✅'
+    - 'src/app/api/ - 19 文件日志迁移完成,0 个 console 残留 ✅'
+  tests_reviewed:
+    count: 25
+    passed: 19
+    failed: 6
+    notes: '单元测试已创建,但 6 个测试失败 (测试期望与实现不匹配),需修复'
+  risks_identified:
+    count: 4
+    resolved: 1
+    notes: 'MNT-001 (已解决 ✅), TEST-001 (部分解决 ⚠️), OPS-001 (手动配置), MNT-002 (前端日志)'
+
+nfr_validation:
+  security:
+    status: PASS
+    notes: '敏感信息脱敏机制完善 (sanitizeQuery, sanitizeEmail),禁止记录密码/Token,环境变量保护得当'
+  performance:
+    status: PASS
+    notes: 'Pino 高性能 (<1ms 延迟, >30k logs/s 吞吐量),异步发送不阻塞主流程,日志开销 <5ms (符合 AC5)'
+  reliability:
+    status: CONCERNS
+    notes: '缺少单元测试,无法保证 Logger 配置逻辑和辅助函数在重构/升级时不破坏功能'
+  maintainability:
+    status: CONCERNS
+    notes: 'API Routes 层日志未迁移 (技术债务),前端仍有 console 调用,缺少测试导致维护风险增加'
+
+recommendations:
+  immediate:  # Must fix before Ready for Done
+    - action: '✅ DONE: 修复 API Routes 层 console 日志'
+      refs: 
+        - '19 个 API route 文件已完成迁移'
+      estimated_hours: 2-3
+      owner: 'dev'
+      status: 'completed'
+    
+    - action: '⚠️ PARTIAL: 修复单元测试失败用例'
+      refs:
+        - 'tests/unit/lib/logger.test.ts - 6/25 测试失败'
+        - '失败原因: 测试期望与实现不匹配 (sanitizeEmail 空字符串, logError 签名)'
+      estimated_hours: 0.5
+      owner: 'dev'
+      status: 'in_progress'
+    
+    - action: '✅ DONE: 验证 lint 通过'
+      refs:
+        - 'npm run lint - 0 个 linting 错误'
+      estimated_hours: 0
+      owner: 'dev'
+      status: 'completed'
+
+  high_priority:  # Should complete but can be marked as "Blocked - 待用户完成"
+    - action: '完成 Axiom 账号配置'
+      refs:
+        - 'Task 1: 注册 Axiom, 生成 Token, 配置环境变量'
+      estimated_hours: 1-2
+      owner: 'po'
+    
+    - action: '配置 Axiom Dashboard 和告警规则'
+      refs:
+        - 'Task 4.1: Saved Queries'
+        - 'Task 4.2: Monitoring Dashboard'
+        - 'Task 4.3: 告警规则'
+      estimated_hours: 1-2
+      owner: 'po'
+    
+    - action: '编写运维文档'
+      refs:
+        - 'docs/deployment/axiom-logging-setup.md'
+        - 'docs/deployment/axiom-operations-guide.md'
+        - 'docs/architecture/logging-guide.md'
+      estimated_hours: 2-3
+      owner: 'po'
+
+  future:  # Nice to have improvements
+    - action: '移动 src/lib/test-logger.ts 到 scripts/ 或删除'
+      refs: ['src/lib/test-logger.ts']
+    
+    - action: '定义 LogContext interface 统一日志类型'
+      refs: ['src/lib/logger.ts']
+    
+    - action: '考虑前端专用 logger'
+      refs: ['src/components/', 'src/hooks/']
+
+acceptance_criteria_status:
+  AC1_axiom_account_setup:
+    status: FAIL
+    notes: 'Axiom 账号注册、Token 生成、环境变量配置均为手动任务,尚未完成'
+  
+  AC2_pino_axiom_integration:
+    status: PASS
+    notes: 'Logger 实现正确: 双环境配置、结构化日志格式、辅助函数完善,符合架构文档第 3323-3492 行设计'
+  
+  AC3_critical_path_refactor:
+    status: FAIL
+    notes: 'Services 层 100% 完成 (70+ logger 调用),但 API Routes 层仍有 19 文件使用 console,违反 AC3 "100% 消除 console" 承诺'
+  
+  AC4_axiom_dashboard_config:
+    status: FAIL
+    notes: 'Dashboard、Saved Queries、告警规则均为手动任务,尚未配置'
+  
+  AC5_logging_validation_testing:
+    status: PARTIAL
+    notes: '开发环境验证完成 (pino-pretty 彩色输出),生产环境需 Axiom Token,性能影响测试缺失 (需单元测试验证)'
+  
+  AC6_documentation_operations_guide:
+    status: FAIL
+    notes: '运维文档 (axiom-logging-setup.md, axiom-operations-guide.md, logging-guide.md) 均未创建'
+
+test_design:
+  scenarios_total: 0
+  by_level:
+    unit: 0
+    integration: 0
+    e2e: 0
+  by_priority:
+    p0: 0
+    p1: 0
+    p2: 0
+  coverage_gaps:
+    - 'Logger 实例创建测试 (development vs production environment)'
+    - '环境变量配置测试 (LOG_LEVEL, AXIOM_TOKEN, NODE_ENV)'
+    - 'sanitizeQuery() 截断测试 (100 chars limit)'
+    - 'sanitizeEmail() 脱敏测试 (a***@example.com)'
+    - 'logError() 错误格式化测试'
+    - 'Mock pino-axiom transport 验证日志发送逻辑'
+
+trace:
+  totals:
+    requirements: 6  # 6 个 AC
+    full: 1          # AC2
+    partial: 1       # AC5
+    none: 4          # AC1, AC3, AC4, AC6
+  uncovered:
+    - ac: 'AC1'
+      reason: 'Axiom 账号配置为手动任务,未完成'
+    - ac: 'AC3'
+      reason: 'API Routes 层日志未迁移 (19 文件)'
+    - ac: 'AC4'
+      reason: 'Dashboard 配置为手动任务,未完成'
+    - ac: 'AC6'
+      reason: '运维文档未创建'
+  notes: 'Services 层日志迁移完整,但 API 层遗漏,手动任务未完成,无法真正投入使用'
+
+risk_summary:
+  totals:
+    critical: 0  # score 9
+    high: 2      # score 6 (MNT-001, TEST-001)
+    medium: 1    # score 4 (OPS-001)
+    low: 1       # score 2-3 (MNT-002)
+  highest:
+    id: 'MNT-001'
+    score: 6
+    title: 'API Routes 层日志未迁移'
+  recommendations:
+    must_fix:
+      - '修复 API Routes 层 console 日志 (19 文件,预估 2-3h)'
+      - '添加单元测试 (tests/unit/lib/logger.test.ts,预估 3-4h)'
+    monitor:
+      - '完成 Axiom 手动配置任务 (账号、Dashboard、告警、文档,预估 4-6h)'
+      - '考虑前端日志统一管理 (可选,低优先级)'
+
+next_steps:
+  - 'Dev 按照 "Improvements Checklist - Critical" 修复 (预估 5-7h)'
+  - '修复完成后更新 Dev Agent Record 和 File List'
+  - '标记手动任务为 "Blocked - 待用户完成"'
+  - 'QA 重新评审 → Gate: PASS'
+
+decision_rationale: |
+  Gate 决策为 CONCERNS 的原因:
+  
+  1. **功能不完整** (High):
+     - AC3 承诺 "100% 消除 console 日志",但 API Routes 层仍有 19 文件使用 console
+     - Services 层完成度良好 (70+ logger 调用),但关键的 API 错误无法发送到 Axiom
+  
+  2. **质量不达标** (High):
+     - 缺少单元测试 (tests/unit/lib/logger.test.ts 不存在)
+     - Logger 配置逻辑和辅助函数未验证,违反 Epic 4 测试覆盖率目标 (80%)
+  
+  3. **手动任务未完成** (Medium):
+     - Axiom 账号注册、Token 生成、Dashboard 配置、告警规则、运维文档均未完成
+     - 即使代码完美,日志也无法发送到 Axiom (Token 未配置)
+  
+  4. **代码质量良好** (Positive):
+     - Logger 核心实现符合架构设计,结构化日志辅助函数设计良好
+     - 敏感信息脱敏机制完善,性能影响可接受
+     - Services 层日志迁移完整,边界情况日志完善
+  
+  **结论**: 
+  - 代码质量良好,但功能不完整且质量不达标
+  - 建议退回 InProgress,完成 Critical Issues 后重新评审
+  - 预估额外工作量: 5-7 小时 (代码) + 4-6 小时 (手动配置)

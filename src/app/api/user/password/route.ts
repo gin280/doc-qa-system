@@ -6,6 +6,7 @@ import { eq } from 'drizzle-orm'
 import bcrypt from 'bcrypt'
 import { rateLimit } from '@/lib/rate-limit-advanced'
 import { changePasswordSchema } from '@/lib/validations/auth'
+import { logger } from '@/lib/logger'
 
 const passwordLimiter = rateLimit({
   interval: 5 * 60 * 1000, // 5 minutes
@@ -90,7 +91,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ message: '密码修改成功' })
   } catch (error) {
-    console.error('Change password error:', error)
+    logger.error({ error: error, action: 'error' }, 'Change password error:')
     return NextResponse.json({ error: '密码修改失败' }, { status: 500 })
   }
 }

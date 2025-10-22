@@ -2,6 +2,7 @@ import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters'
 import { db } from '@/lib/db'
 import { documents, documentChunks } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
+import { logger, logDocumentChunking, logError } from '@/lib/logger'
 
 /**
  * 最大chunks数量限制
@@ -76,7 +77,11 @@ export async function chunkDocument(
       throw new ChunkingError('文档内容为空，无法处理')
     }
 
-    console.log(`[Chunking] Document ${documentId}: 开始分块, 文本长度=${trimmedContent.length}字符`)
+    logger.info({
+      documentId,
+      contentLength: trimmedContent.length,
+      action: 'chunk_start'
+    }, 'Document chunking started')
 
     // 5. 配置分块器
     const splitter = new RecursiveCharacterTextSplitter({
@@ -93,23 +98,36 @@ export async function chunkDocument(
     })
     
     // 6. 执行分块
+    const chunkStartTime = Date.now()
     let allChunks = await splitter.createDocuments([trimmedContent])
     const originalChunksCount = allChunks.length
+    const chunkTime = Date.now() - chunkStartTime
     
-    console.log(`[Chunking] 分块完成: ${originalChunksCount}个chunks`)
+    logger.info({
+      documentId,
+      chunksCount: originalChunksCount,
+      chunkTime,
+      action: 'chunk_complete'
+    }, 'Document chunking completed')
 
     // 7. 检查是否超过最大限制
     let truncated = false
     if (originalChunksCount > MAX_CHUNKS) {
-      console.warn('[Chunking] 文档超过最大chunks限制', {
+      logDocumentChunking({
         documentId,
-        originalChunksCount,
-        maxChunks: MAX_CHUNKS,
-        action: '截断到10000'
+        chunksCount: originalChunksCount,
+        truncated: true,
+        limit: MAX_CHUNKS
       })
       
       allChunks = allChunks.slice(0, MAX_CHUNKS) // 截断
       truncated = true
+    } else {
+      logDocumentChunking({
+        documentId,
+        chunksCount: originalChunksCount,
+        chunkTime
+      })
     }
 
     // 8. 保存到数据库
@@ -164,18 +182,13 @@ export async function chunkDocument(
       }
     }
 
-    // 结构化错误日志
-    const errorInfo = {
-      timestamp: new Date().toISOString(),
+    // 记录错误日志
+    logError(error, {
       documentId,
       errorType,
-      message: error instanceof Error ? error.message : '未知错误',
-      context: {
-        documentStatus: currentDoc?.status
-      }
-    }
-    
-    console.error('[Chunking] 错误:', errorInfo)
+      documentStatus: currentDoc?.status,
+      action: 'chunking_error'
+    })
 
     // 更新文档状态为FAILED，保留现有metadata
     await db.update(documents)

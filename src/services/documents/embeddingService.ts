@@ -6,6 +6,7 @@ import { llmConfig } from '@/config/llm.config'
 import { VectorRepositoryFactory } from '@/infrastructure/vector/vector-repository.factory'
 import { vectorConfig } from '@/config/vector.config'
 import type { ChunkResult } from './chunkingService'
+import { logger, logEmbedding, logDimensionError, logError } from '@/lib/logger'
 
 /**
  * 向量化错误
@@ -86,7 +87,11 @@ async function processBatchesInParallel<T>(
 ): Promise<{ successCount: number; failedBatches: number[] }> {
   const results: { index: number; success: boolean }[] = []
   
-  console.log(`[Embedding] 开始并行处理, 总批次=${batches.length}, 并发数=${concurrency}`)
+  logger.info({
+    totalBatches: batches.length,
+    concurrency,
+    action: 'batch_parallel_start'
+  }, 'Starting parallel batch processing')
   const startTime = Date.now()
   
   // 使用队列方式控制并发
@@ -97,16 +102,27 @@ async function processBatchesInParallel<T>(
   
   const processBatch = async (batchIndex: number): Promise<void> => {
     const batchStartTime = Date.now()
-    console.log(`[Embedding] 批次 ${batchIndex + 1} 开始`)
+    logger.info({
+      batchIndex: batchIndex + 1,
+      action: 'batch_start'
+    }, 'Batch processing started')
     
     try {
       await processor(batches[batchIndex], batchIndex)
-      const duration = ((Date.now() - batchStartTime) / 1000).toFixed(1)
-      console.log(`[Embedding] 批次 ${batchIndex + 1} 完成 (${duration}s)`)
+      const duration = Date.now() - batchStartTime
+      logger.info({
+        batchIndex: batchIndex + 1,
+        duration,
+        action: 'batch_success'
+      }, 'Batch processing completed')
       results.push({ index: batchIndex, success: true })
     } catch (error) {
-      const duration = ((Date.now() - batchStartTime) / 1000).toFixed(1)
-      console.error(`[Embedding] 批次 ${batchIndex + 1} 失败 (${duration}s):`, error)
+      const duration = Date.now() - batchStartTime
+      logError(error, {
+        batchIndex: batchIndex + 1,
+        duration,
+        action: 'batch_error'
+      })
       results.push({ index: batchIndex, success: false })
     }
   }
@@ -128,11 +144,16 @@ async function processBatchesInParallel<T>(
   
   await Promise.all(workers)
   
-  const totalDuration = ((Date.now() - startTime) / 1000).toFixed(1)
+  const totalDuration = Date.now() - startTime
   const successCount = results.filter(r => r.success).length
   const failedBatches = results.filter(r => !r.success).map(r => r.index)
   
-  console.log(`[Embedding] 所有批次完成, 总耗时=${totalDuration}s, 成功=${successCount}, 失败=${failedBatches.length}`)
+  logger.info({
+    totalDuration,
+    successCount,
+    failedCount: failedBatches.length,
+    action: 'batch_parallel_complete'
+  }, 'All batches completed')
   
   return { successCount, failedBatches }
 }
@@ -157,7 +178,11 @@ export async function embedAndStoreChunks(
       throw new EmbeddingError('文档不存在', 'EMBEDDING_ERROR')
     }
 
-    console.log(`[Embedding] Document ${documentId}: 开始向量化, chunks数=${chunks.length}`)
+    logger.info({
+      documentId,
+      chunksCount: chunks.length,
+      action: 'embed_start'
+    }, 'Document embedding started')
 
     // 2. 初始化LLM和Vector Repositories
     const llm = LLMRepositoryFactory.create(llmConfig)
@@ -181,7 +206,7 @@ export async function embedAndStoreChunks(
     }
 
     // 3.2 定义批次处理器
-    const processBatch = async (batch: ChunkResult[], batchIndex: number): Promise<void> => {
+    const processBatch = async (batch: ChunkResult[]): Promise<void> => {
       // 4. 批量生成embeddings (带超时控制)
       const texts = batch.map(c => c.content)
       const embeddingsPromise = llm.generateEmbeddings(texts)
@@ -211,13 +236,15 @@ export async function embedAndStoreChunks(
             `  2. Re-process the document after fixing configuration\n` +
             `  3. Check database vector column dimension`
           
-          console.error('[Embedding] 维度不匹配', {
-            documentId,
+          logDimensionError({
+            expected: dimension,
+            actual: vector.length,
             chunkId: batch[idx].id,
-            chunkIndex: batch[idx].chunkIndex,
-            expectedDimension: dimension,
-            actualDimension: vector.length,
-            provider: llmConfig.provider
+            context: {
+              documentId,
+              chunkIndex: batch[idx].chunkIndex,
+              provider: llmConfig.provider
+            }
           })
           
           throw new EmbeddingError(errorMsg, 'DIMENSION_MISMATCH')
@@ -254,7 +281,7 @@ export async function embedAndStoreChunks(
     }
 
     // 3.3 并行处理所有批次
-    const { successCount, failedBatches } = await processBatchesInParallel(
+    const { failedBatches } = await processBatchesInParallel(
       batches,
       processBatch,
       CONCURRENCY
@@ -289,7 +316,13 @@ export async function embedAndStoreChunks(
       })
       .where(eq(documents.id, documentId))
 
-    console.log(`[Embedding] Document ${documentId}: 向量化完成`)
+    // 记录Embedding成功
+    logEmbedding({
+      documentId,
+      batchSize: chunks.length,
+      embeddingTime: Date.now() - (batches.length > 0 ? 0 : Date.now()), // 近似时间
+      success: true
+    })
 
   } catch (error) {
     // 获取当前文档以保留现有metadata
@@ -297,19 +330,14 @@ export async function embedAndStoreChunks(
       .from(documents)
       .where(eq(documents.id, documentId))
 
-    // 结构化错误日志
-    const errorInfo = {
-      timestamp: new Date().toISOString(),
+    // 记录Embedding失败
+    logEmbedding({
       documentId,
-      errorType: error instanceof EmbeddingError ? error.type : 'EMBEDDING_ERROR',
-      message: error instanceof Error ? error.message : '未知错误',
-      context: {
-        chunksCount: chunks.length,
-        provider: llmConfig.provider
-      }
-    }
-    
-    console.error('[Embedding] 错误:', errorInfo)
+      batchSize: chunks.length,
+      embeddingTime: 0,
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    })
 
     // 更新文档状态为FAILED，保留现有metadata
     await db.update(documents)

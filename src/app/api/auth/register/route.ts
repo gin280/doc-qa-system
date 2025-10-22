@@ -6,6 +6,7 @@ import { users, userUsage } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import { registerApiSchema } from '@/lib/validations/auth'
+import { logger } from '@/lib/logger'
 
 // 注册请求验证 Schema - 使用后端专用的验证规则
 // 不包含 confirmPassword (前端已验证), 用户名允许空格
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 其他错误
-    console.error('注册失败:', error)
+    logger.error({ error: error, action: 'error' }, '注册失败:')
     return NextResponse.json(
       { error: '注册失败，请稍后重试' },
       { status: 500 }

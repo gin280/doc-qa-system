@@ -10,6 +10,7 @@ import { llmConfig } from '@/config/llm.config'
 import { buildSystemPrompt, estimateTokenCount, truncateContext } from './promptBuilder'
 import { conversationService } from '@/services/chat/conversationService'
 import type { ChatMessage } from '@/infrastructure/llm/llm-repository.interface'
+import { logger } from '@/lib/logger'
 
 export interface RetrievalResult {
   chunks: Array<{
@@ -63,12 +64,13 @@ export class AnswerService {
       const dynamicMaxTokens = this.calculateMaxTokens(complexity)
       const maxTokens = options.maxTokens ?? dynamicMaxTokens
       
-      console.log('Dynamic token allocation', {
+      logger.debug({
         complexity,
         dynamicMaxTokens,
         userSpecified: options.maxTokens,
-        finalMaxTokens: maxTokens
-      })
+        finalMaxTokens: maxTokens,
+        action: 'generation_token_allocation'
+      }, 'Dynamic token allocation')
       
       // 3. 选择LLM提供商（智能路由）
       // 目前简化实现：使用配置中的提供商
@@ -95,7 +97,11 @@ export class AnswerService {
             })
           }
         } catch (error) {
-          console.warn('Failed to load conversation history:', error)
+          logger.warn({
+            error: error instanceof Error ? error.message : String(error),
+            conversationId,
+            action: 'generation_history_load_error'
+          }, 'Failed to load conversation history')
           // 继续执行，不因为历史加载失败而中断
         }
       }
@@ -109,7 +115,11 @@ export class AnswerService {
 
       if (!promptValidation.valid) {
         // 如果超过限制，截断历史
-        console.warn('Prompt too long, truncating history')
+        logger.warn({
+          totalTokens: promptValidation.totalTokens,
+          originalHistoryLength: conversationHistory.length,
+          action: 'generation_prompt_truncate'
+        }, 'Prompt too long, truncating history')
         conversationHistory.splice(0, conversationHistory.length / 2)
       }
 
@@ -135,21 +145,23 @@ export class AnswerService {
         if (totalChunks === 0) {
           firstChunkTime = now
           if (now - startTime > FIRST_CHUNK_TIMEOUT) {
-            console.error('First chunk timeout exceeded', {
-              elapsed: `${now - startTime}ms`,
-              threshold: `${FIRST_CHUNK_TIMEOUT}ms`
-            })
+            logger.error({
+              elapsed: now - startTime,
+              threshold: FIRST_CHUNK_TIMEOUT,
+              action: 'generation_first_chunk_timeout'
+            }, 'First chunk timeout exceeded')
             throw new Error('GENERATION_TIMEOUT')
           }
         }
         
         // 检查总体超时
         if (now - startTime > TOTAL_TIMEOUT) {
-          console.error('Total timeout exceeded', {
-            elapsed: `${now - startTime}ms`,
-            threshold: `${TOTAL_TIMEOUT}ms`,
-            chunksReceived: totalChunks
-          })
+          logger.error({
+            elapsed: now - startTime,
+            threshold: TOTAL_TIMEOUT,
+            chunksReceived: totalChunks,
+            action: 'generation_total_timeout'
+          }, 'Total timeout exceeded')
           throw new Error('GENERATION_TIMEOUT')
         }
         
@@ -160,26 +172,26 @@ export class AnswerService {
       const elapsed = Date.now() - startTime
       const firstChunkLatency = firstChunkTime ? firstChunkTime - startTime : 0
 
-      console.log('Answer generation completed', {
+      // 记录生成成功
+      logger.info({
         complexity,
-        dynamicMaxTokens,
-        userSpecifiedMaxTokens: options.maxTokens,
-        finalMaxTokens: maxTokens,
         provider: llmConfig.provider,
-        elapsed: `${elapsed}ms`,
-        firstChunkLatency: `${firstChunkLatency}ms`,
+        generationTime: elapsed,
+        firstChunkLatency,
         totalChunks,
-        queryLength: query.length,
-        chunksUsed: truncatedChunks.length
-      })
+        maxTokens,
+        action: 'generation_success'
+      }, 'Answer generation completed')
 
     } catch (error: any) {
       const elapsed = Date.now() - startTime
       
-      console.error('Answer generation failed', {
+      // 记录生成失败
+      logger.error({
         error: error.message,
-        elapsed: `${elapsed}ms`
-      })
+        generationTime: elapsed,
+        action: 'generation_error'
+      }, 'Answer generation failed')
 
       // 友好错误处理
       if (error.message.includes('timeout')) {

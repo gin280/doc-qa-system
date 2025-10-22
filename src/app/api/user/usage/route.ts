@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { users, userUsage } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
+import { logger } from '@/lib/logger'
 
 // GET /api/user/usage - 获取使用量统计
 export async function GET() {
@@ -59,7 +60,7 @@ export async function GET() {
       ...limits
     })
   } catch (error) {
-    console.error('Get usage error:', error)
+    logger.error({ error: error, action: 'error' }, 'Get usage error:')
     return NextResponse.json({ error: '获取使用量失败' }, { status: 500 })
   }
 }

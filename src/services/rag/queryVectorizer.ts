@@ -8,6 +8,7 @@
 import { LLMRepositoryFactory } from '@/infrastructure/llm/llm-repository.factory'
 import { llmConfig, EMBEDDING_DIMENSION } from '@/config/llm.config'
 import { embeddingCache } from './embeddingCache'
+import { logger, logCache } from '@/lib/logger'
 
 /**
  * 查询向量化错误类型
@@ -51,14 +52,11 @@ export class QueryVectorizer {
       if (cachedVector) {
         const elapsed = Date.now() - startTime
         
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[QueryVectorizer] Using cached embedding:', {
-            questionLength: trimmed.length,
-            vectorDim: cachedVector.length,
-            elapsed: `${elapsed}ms`,
-            source: 'cache'
-          })
-        }
+        logCache({
+          cacheKey: `qv:${trimmed.slice(0, 30)}...`,
+          hit: true,
+          hitTime: elapsed
+        })
 
         return cachedVector
       }
@@ -83,30 +81,30 @@ export class QueryVectorizer {
 
       // Story 4.2: 异步写入缓存 (不阻塞响应)
       embeddingCache.set(trimmed, vector).catch(err => {
-        console.warn('[QueryVectorizer] Failed to cache embedding:', err)
+        logger.warn({
+          error: err.message,
+          action: 'query_vectorizer_cache_write_error'
+        }, 'Failed to cache embedding')
       })
 
       const elapsed = Date.now() - startTime
 
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[QueryVectorizer] Query vectorized:', {
-          questionLength: trimmed.length,
-          vectorDim: vector.length,
-          elapsed: `${elapsed}ms`,
-          source: 'api',
-          cached: true  // 已写入缓存
-        })
-      }
+      logCache({
+        cacheKey: `qv:${trimmed.slice(0, 30)}...`,
+        hit: false,
+        missTime: elapsed
+      })
 
       return vector
 
     } catch (error) {
       const elapsed = Date.now() - startTime
 
-      console.error('[QueryVectorizer] Query vectorization failed', {
+      logger.error({
         error: error instanceof Error ? error.message : String(error),
-        elapsed: `${elapsed}ms`
-      })
+        elapsed,
+        action: 'query_vectorization_error'
+      }, 'Query vectorization failed')
 
       // 如果已经是我们的自定义错误，直接抛出
       if (error instanceof QueryVectorizationError) {

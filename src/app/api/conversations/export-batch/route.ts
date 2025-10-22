@@ -11,6 +11,7 @@ import { rateLimiter, RATE_LIMITS } from '@/lib/rateLimit'
 import type { ConversationExportData } from '@/services/export/markdownExporter'
 import type { ExportFile } from '@/services/export/zipGenerator'
 import { getErrorMessage } from '@/types/errors'
+import { logger } from '@/lib/logger'
 
 interface BatchExportRequest {
   conversationIds: string[]
@@ -131,7 +132,11 @@ export async function POST(req: NextRequest) {
         exportFiles.push({ filename, content: fileContent })
 
       } catch (error) {
-        console.error(`[Export API] Failed to export conversation ${conversation.id}:`, error)
+        logger.error({ 
+          error, 
+          conversationId: conversation.id, 
+          action: 'export_conversation_error' 
+        }, `[Export API] Failed to export conversation ${conversation.id}`)
         // 继续处理其他对话，不中断批量导出
       }
     }
@@ -147,15 +152,14 @@ export async function POST(req: NextRequest) {
     const folderName = generateBatchExportFolderName()
     const zipBuffer = await generateZipExport(exportFiles, folderName)
 
-    // 开发环境记录日志
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Export API] Generated batch markdown export', {
-        userId: session.user.id,
-        requestedCount: conversationIds.length,
-        exportedCount: exportFiles.length,
-        zipSize: zipBuffer.length
-      })
-    }
+    // 记录日志
+    logger.info({
+      userId: session.user.id,
+      requestedCount: conversationIds.length,
+      exportedCount: exportFiles.length,
+      zipSize: zipBuffer.length,
+      action: 'generated_batch_markdown_export'
+    }, '[Export API] Generated batch markdown export')
 
     // 8. 返回 ZIP 文件（包含速率限制头）
     return new NextResponse(new Uint8Array(zipBuffer), {
@@ -171,9 +175,9 @@ export async function POST(req: NextRequest) {
     })
 
   } catch (error: unknown) {
-    console.error('[Export API] Batch export failed', {
+    logger.error({...{
       error: getErrorMessage(error)
-    })
+    }, action: 'batch_export_failed_error'}, '[Export API] Batch export failed')
 
     return NextResponse.json(
       { error: '批量导出失败，请重试' },

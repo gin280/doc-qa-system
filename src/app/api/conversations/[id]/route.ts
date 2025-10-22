@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { conversations, messages, documents } from '@/drizzle/schema'
 import { eq, and, asc } from 'drizzle-orm'
 import { getErrorMessage } from '@/types/errors'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/conversations/:id
@@ -57,14 +58,13 @@ export async function GET(
       .where(eq(messages.conversationId, conversationId))
       .orderBy(asc(messages.createdAt))
 
-    // 开发环境记录日志
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Conversation API] Retrieved', {
-        conversationId,
-        userId: session.user.id,
-        messageCount: messageList.length
-      })
-    }
+    // 记录日志
+    logger.info({
+      conversationId,
+      userId: session.user.id,
+      messageCount: messageList.length,
+      action: 'conversation_retrieved'
+    }, '[Conversation API] Retrieved')
 
     return NextResponse.json({
       conversation,
@@ -72,10 +72,11 @@ export async function GET(
     })
 
   } catch (error: unknown) {
-    console.error('[Conversation API] Failed to get conversation', {
+    logger.error({
       error: getErrorMessage(error),
-      conversationId: params.id
-    })
+      conversationId: params.id,
+      action: 'get_conversation_error'
+    }, '[Conversation API] Failed to get conversation')
 
     return NextResponse.json(
       { error: '获取对话详情失败' },
@@ -124,21 +125,21 @@ export async function DELETE(
       .delete(conversations)
       .where(eq(conversations.id, conversationId))
 
-    // 开发环境记录日志
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Conversation API] Deleted', {
-        conversationId,
-        userId: session.user.id
-      })
-    }
+    // 记录日志
+    logger.info({
+      conversationId,
+      userId: session.user.id,
+      action: 'conversation_deleted'
+    }, '[Conversation API] Deleted')
 
     return NextResponse.json({ success: true })
 
   } catch (error: unknown) {
-    console.error('[Conversation API] Failed to delete conversation', {
+    logger.error({
       error: getErrorMessage(error),
-      conversationId: params.id
-    })
+      conversationId: params.id,
+      action: 'delete_conversation_error'
+    }, '[Conversation API] Failed to delete conversation')
 
     return NextResponse.json(
       { error: '删除对话失败' },

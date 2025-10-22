@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { documents } from '@/drizzle/schema'
 import { eq, and } from 'drizzle-orm'
 import { parseDocument, ParseError } from '@/services/documents/parserService'
+import { logger } from '@/lib/logger'
 
 /**
  * 配置Vercel函数
@@ -84,7 +85,7 @@ export async function POST(
         'Cookie': req.headers.get('Cookie') || ''
       }
     }).catch(err => {
-      console.error('Failed to trigger processing:', err)
+      logger.error({ error: err, action: 'error' }, 'Failed to trigger processing:')
       // 处理失败不影响解析成功响应
     })
 
@@ -102,7 +103,7 @@ export async function POST(
     })
 
   } catch (error) {
-    console.error('Parse error:', error)
+    logger.error({ error: error, action: 'error' }, 'Parse error:')
 
     // 处理解析特定错误
     if (error instanceof ParseError) {
@@ -173,7 +174,7 @@ export async function GET(
     })
 
   } catch (error) {
-    console.error('Get parse status error:', error)
+    logger.error({ error: error, action: 'error' }, 'Get parse status error:')
     return NextResponse.json(
       { error: '服务器错误,请稍后重试' },
       { status: 500 }

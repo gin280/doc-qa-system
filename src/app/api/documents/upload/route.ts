@@ -12,6 +12,8 @@ import {
 } from '@/lib/file-validator'
 import { StorageService } from '@/services/documents/storageService'
 import { checkUploadRateLimit, logRateLimitExceeded } from '@/lib/rateLimit'
+import { logger, logDocumentUpload, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 
 const MAX_DOCUMENTS_PER_USER = 50
 const MAX_STORAGE_PER_USER = 500 * 1024 * 1024  // 500MB
@@ -101,6 +103,15 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
+
+    // 记录上传开始
+    const uploadStartTime = Date.now()
+    logger.info({
+      userId: session.user.id,
+      fileName: file.name,
+      fileSize: file.size,
+      action: 'upload_start'
+    }, 'Document upload started')
 
     // 3. 基本验证
     const sizeValidation = validateFileSize(file.size)
@@ -269,7 +280,7 @@ export async function POST(req: NextRequest) {
           try {
             await StorageService.deleteFile(storagePath)
           } catch (cleanupError) {
-            console.error('Storage cleanup error:', cleanupError)
+            logger.error({ error: cleanupError, action: 'error' }, 'Storage cleanup error:')
           }
           
           // 回滚: 删除document记录
@@ -289,8 +300,23 @@ export async function POST(req: NextRequest) {
             'Cookie': req.headers.get('Cookie') || ''
           }
         }).catch(err => {
-          console.error('[Upload] Failed to trigger parsing:', err)
+          logger.error({
+            error: err instanceof Error ? err.message : String(err),
+            documentId: document.id,
+            userId: session.user.id,
+            action: 'parse_trigger_error'
+          }, '[Upload] Failed to trigger parsing')
           // 解析失败不影响上传成功响应
+        })
+
+        // 记录上传成功
+        logDocumentUpload({
+          userId: session.user.id,
+          documentId: document.id,
+          fileName: sanitizedFilename,
+          fileSize: file.size,
+          processingTime: Date.now() - uploadStartTime,
+          success: true
         })
 
         // 12. 返回成功响应
@@ -307,7 +333,15 @@ export async function POST(req: NextRequest) {
       } catch (uploadError) {
         // ==================== 错误回滚处理 ====================
         
-        console.error('[Upload] Storage upload error:', uploadError)
+        // 记录上传失败
+        logDocumentUpload({
+          userId: session.user.id,
+          fileName: sanitizedFilename,
+          fileSize: file.size,
+          processingTime: Date.now() - uploadStartTime,
+          success: false,
+          error: uploadError instanceof Error ? uploadError.message : String(uploadError)
+        })
         
         // 回滚: 删除Storage文件(如果已上传)
         try {
@@ -315,14 +349,25 @@ export async function POST(req: NextRequest) {
           const storagePath = `${session.user.id}/${documentId}${fileExtension}`
           await StorageService.deleteFile(storagePath)
         } catch (cleanupError) {
-          console.error('[Cleanup] Failed to delete storage file:', cleanupError)
+          logger.error({
+            error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+            userId: session.user.id,
+            documentId,
+            storagePath: `${session.user.id}/${documentId}`,
+            action: 'cleanup_storage_error'
+          }, '[Cleanup] Failed to delete storage file')
         }
 
         // 回滚: 删除document记录(如果已创建)
         try {
           await db.delete(documents).where(eq(documents.id, documentId))
         } catch (cleanupError) {
-          console.error('[Cleanup] Failed to delete document record:', cleanupError)
+          logger.error({
+            error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+            userId: session.user.id,
+            documentId,
+            action: 'cleanup_db_error'
+          }, '[Cleanup] Failed to delete document record')
         }
 
         // 提供更友好的错误消息
@@ -350,7 +395,11 @@ export async function POST(req: NextRequest) {
       }
 
     } catch (dbError) {
-      console.error('Database error:', dbError)
+      logError(dbError, {
+        userId: session.user.id,
+        fileName: file?.name,
+        action: 'upload_db_error'
+      })
       return NextResponse.json(
         { error: '数据库操作失败' },
         { status: 500 }
@@ -358,7 +407,10 @@ export async function POST(req: NextRequest) {
     }
 
   } catch (error) {
-    console.error('Upload error:', error)
+    logError(error, {
+      userId: session?.user?.id,
+      action: 'upload_error'
+    })
     return NextResponse.json(
       { error: '服务器错误，请稍后重试' },
       { status: 500 }

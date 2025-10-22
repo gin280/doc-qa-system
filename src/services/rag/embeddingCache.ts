@@ -10,6 +10,7 @@
 
 import { Redis } from '@upstash/redis'
 import { createHash } from 'crypto'
+import { logger } from '@/lib/logger'
 
 /**
  * 缓存配置常量
@@ -78,13 +79,13 @@ export class EmbeddingCacheService {
         })
         
         if (process.env.NODE_ENV === 'development') {
-          console.log('[EmbeddingCache] Redis initialized successfully')
+          logger.info({ service: 'EmbeddingCache' }, 'Redis initialized successfully')
         }
       } catch (error) {
-        console.warn('[EmbeddingCache] Failed to initialize Redis:', error)
+        logger.warn({ service: 'EmbeddingCache', error }, 'Failed to initialize Redis')
       }
     } else {
-      console.warn('[EmbeddingCache] Redis not configured, embedding caching disabled')
+      logger.warn({ service: 'EmbeddingCache' }, 'Redis not configured, embedding caching disabled')
     }
   }
 
@@ -103,13 +104,22 @@ export class EmbeddingCacheService {
   private validateVector(vector: any): vector is number[] {
     // 1. 验证类型
     if (!Array.isArray(vector)) {
-      console.warn('[EmbeddingCache] Invalid cached vector: not an array', typeof vector)
+      logger.warn({ 
+        service: 'EmbeddingCache', 
+        vectorType: typeof vector,
+        action: 'validation_error'
+      }, 'Invalid cached vector: not an array')
       return false
     }
     
     // 2. 验证维度 (智谱 Embedding-2 模型: 1024维)
     if (vector.length !== 1024) {
-      console.warn('[EmbeddingCache] Invalid cached vector: wrong dimension', vector.length)
+      logger.warn({ 
+        service: 'EmbeddingCache', 
+        dimension: vector.length,
+        expected: 1024,
+        action: 'validation_error'
+      }, 'Invalid cached vector: wrong dimension')
       return false
     }
     
@@ -119,7 +129,10 @@ export class EmbeddingCacheService {
     )
     
     if (hasInvalidValue) {
-      console.warn('[EmbeddingCache] Invalid cached vector: contains NaN or Infinity')
+      logger.warn({ 
+        service: 'EmbeddingCache',
+        action: 'validation_error'
+      }, 'Invalid cached vector: contains NaN or Infinity')
       return false
     }
     
@@ -173,7 +186,11 @@ export class EmbeddingCacheService {
         
         // ✨ QA修复: 验证缓存数据完整性
         if (!this.validateVector(vector)) {
-          console.warn('[EmbeddingCache] Corrupted cache detected, removing:', cacheKey)
+          logger.warn({ 
+            service: 'EmbeddingCache', 
+            cacheKey,
+            action: 'cache_corrupted'
+          }, 'Corrupted cache detected, removing')
           // 删除损坏的缓存数据
           try {
             await this.redis.del(cacheKey)
@@ -189,13 +206,15 @@ export class EmbeddingCacheService {
         this.metrics.recordHit()
         
         if (process.env.NODE_ENV === 'development') {
-          console.log('[EmbeddingCache] Cache HIT:', {
+          logger.info({
+            service: 'EmbeddingCache',
             cacheKey,
             queryLength: query.length,
             vectorDim: vector.length,
-            latency: `${latency}ms`,
-            hitRate: `${(this.metrics.hitRate * 100).toFixed(1)}%`
-          })
+            latency,
+            hitRate: this.metrics.hitRate,
+            action: 'cache_hit'
+          }, 'Cache HIT')
         }
 
         return vector
@@ -205,18 +224,24 @@ export class EmbeddingCacheService {
       this.metrics.recordMiss()
       
       if (process.env.NODE_ENV === 'development') {
-        console.log('[EmbeddingCache] Cache MISS:', {
+        logger.info({
+          service: 'EmbeddingCache',
           cacheKey,
           queryLength: query.length,
-          latency: `${latency}ms`,
-          hitRate: `${(this.metrics.hitRate * 100).toFixed(1)}%`
-        })
+          latency,
+          hitRate: this.metrics.hitRate,
+          action: 'cache_miss'
+        }, 'Cache MISS')
       }
 
       return null
 
     } catch (error) {
-      console.warn('[EmbeddingCache] Failed to get cached embedding:', error)
+      logger.warn({ 
+        service: 'EmbeddingCache', 
+        error,
+        action: 'cache_error'
+      }, 'Failed to get cached embedding')
       return null  // 缓存错误不影响主流程,自动降级
     }
   }
@@ -241,15 +266,21 @@ export class EmbeddingCacheService {
       )
 
       if (process.env.NODE_ENV === 'development') {
-        console.log('[EmbeddingCache] Cached embedding:', {
+        logger.info({
+          service: 'EmbeddingCache',
           cacheKey,
           vectorDim: vector.length,
-          ttl: `${CACHE_CONFIG.TTL}s (1 hour)`
-        })
+          ttl: CACHE_CONFIG.TTL,
+          action: 'cache_set'
+        }, 'Cached embedding')
       }
 
     } catch (error) {
-      console.warn('[EmbeddingCache] Failed to cache embedding:', error)
+      logger.warn({ 
+        service: 'EmbeddingCache', 
+        error,
+        action: 'cache_set_error'
+      }, 'Failed to cache embedding')
       // 不抛出错误,缓存失败不影响主流程
     }
   }
@@ -269,11 +300,21 @@ export class EmbeddingCacheService {
 
       if (keys.length > 0) {
         await this.redis.del(...keys)
-        console.log(`[EmbeddingCache] Invalidated ${keys.length} keys for provider ${provider}`)
+        logger.info({
+          service: 'EmbeddingCache',
+          provider,
+          keysInvalidated: keys.length,
+          action: 'cache_invalidate'
+        }, `Invalidated ${keys.length} keys for provider ${provider}`)
       }
 
     } catch (error) {
-      console.warn('[EmbeddingCache] Failed to invalidate provider cache:', error)
+      logger.warn({ 
+        service: 'EmbeddingCache', 
+        provider,
+        error,
+        action: 'cache_invalidate_error'
+      }, 'Failed to invalidate provider cache')
     }
   }
 
@@ -310,7 +351,11 @@ export class EmbeddingCacheService {
       }
 
     } catch (error) {
-      console.warn('[EmbeddingCache] Failed to get cache stats:', error)
+      logger.warn({ 
+        service: 'EmbeddingCache', 
+        error,
+        action: 'stats_error'
+      }, 'Failed to get cache stats')
       return {
         enabled: true,
         metrics: this.metrics.getStats()

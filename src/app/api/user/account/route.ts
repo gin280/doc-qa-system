@@ -5,6 +5,7 @@ import { users } from '@/drizzle/schema'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { rateLimit } from '@/lib/rate-limit-advanced'
+import { logger } from '@/lib/logger'
 
 const deleteLimiter = rateLimit({
   interval: 60 * 60 * 1000, // 1 hour
@@ -64,7 +65,7 @@ export async function DELETE(request: NextRequest) {
     // 返回 204 No Content
     return new NextResponse(null, { status: 204 })
   } catch (error) {
-    console.error('Delete account error:', error)
+    logger.error({ error: error, action: 'error' }, 'Delete account error:')
     return NextResponse.json({ error: '删除账户失败' }, { status: 500 })
   }
 }

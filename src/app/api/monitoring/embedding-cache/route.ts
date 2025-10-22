@@ -9,6 +9,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { embeddingCache } from '@/services/rag/embeddingCache'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/monitoring/embedding-cache
@@ -39,7 +40,7 @@ export async function GET() {
       timestamp: new Date().toISOString()
     })
   } catch (error) {
-    console.error('[Monitoring API] Failed to get cache stats:', error)
+    logger.error({ error: error, action: 'error' }, '[Monitoring API] Failed to get cache stats:')
     return NextResponse.json(
       { 
         error: 'Internal server error',

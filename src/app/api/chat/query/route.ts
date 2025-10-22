@@ -17,6 +17,7 @@ import { answerService } from '@/services/rag/answerService'
 import { conversationService } from '@/services/chat/conversationService'
 import { usageService } from '@/services/user/usageService'
 import { getErrorMessage as getErrorMessageUtil } from '@/types/errors'
+import { logger } from '@/lib/logger'
 
 /**
  * POST /api/chat/query
@@ -195,10 +196,11 @@ export async function POST(req: NextRequest) {
         await conversationService.getConversation(currentConversationId, session.user.id)
       } catch (error) {
         // 对话不存在或无权访问，创建新对话
-        console.warn('[ChatQuery] Invalid conversationId, creating new conversation:', {
+        logger.warn({
           providedId: currentConversationId,
-          error: error instanceof Error ? error.message : String(error)
-        })
+          error: error instanceof Error ? error.message : String(error),
+          action: 'invalid_conversation_id'
+        }, '[ChatQuery] Invalid conversationId, creating new conversation')
         const conversation = await conversationService.createConversation(
           session.user.id,
           documentId,
@@ -242,14 +244,15 @@ export async function POST(req: NextRequest) {
           const generationTime = Date.now() - generationStartTime
           
           // 监控日志：成功生成
-          console.log('[MONITOR] LLM generation success:', {
+          logger.info({
             timestamp: new Date().toISOString(),
             userId: session.user.id,
             conversationId: currentConversationId,
             generationTimeMs: generationTime,
             answerLength: fullAnswer.length,
-            tokensEstimate: Math.ceil(fullAnswer.length / 4)
-          })
+            tokensEstimate: Math.ceil(fullAnswer.length / 4),
+            action: 'llm_generation_success'
+          }, '[MONITOR] LLM generation success')
 
           // 回答生成完毕，保存到数据库（异步，不阻塞响应）
           conversationService.createAssistantMessage(
@@ -257,12 +260,12 @@ export async function POST(req: NextRequest) {
             fullAnswer,
             [] // citations将在Story 3.4实现
           ).catch(err => {
-            console.error('Failed to save assistant message:', err)
+            logger.error({ error: err, action: 'save_assistant_message_error' }, 'Failed to save assistant message')
           })
 
           // 更新使用量统计（异步，不阻塞响应）
           usageService.incrementQueryCount(session.user.id).catch(err => {
-            console.error('Failed to update usage:', err)
+            logger.error({ error: err, userId: session.user.id, action: 'update_usage_error' }, 'Failed to update usage')
           })
 
           controller.close()
@@ -272,15 +275,16 @@ export async function POST(req: NextRequest) {
           const errorMsg = getErrorMessageUtil(error)
           
           // 监控日志：生成失败
-          console.error('[MONITOR] LLM generation failed:', {
+          logger.error({
             timestamp: new Date().toISOString(),
             userId: session.user.id,
             conversationId: currentConversationId,
             error: errorMsg,
             generationTimeMs: generationTime,
             errorType: errorMsg.includes('timeout') ? 'TIMEOUT' : 
-                       errorMsg.includes('quota') ? 'QUOTA' : 'UNKNOWN'
-          })
+                       errorMsg.includes('quota') ? 'QUOTA' : 'UNKNOWN',
+            action: 'llm_generation_failed'
+          }, '[MONITOR] LLM generation failed')
           
           // 流式错误处理
           const errorMessage = getErrorMessage(error)
@@ -293,7 +297,7 @@ export async function POST(req: NextRequest) {
     const totalTime = Date.now() - retrievalStartTime
     
     // 增强的监控日志（用于告警系统）
-    console.log('[MONITOR] Chat query streaming started:', {
+    logger.info({
       timestamp: new Date().toISOString(),
       userId: session.user.id,
       documentId,
@@ -308,8 +312,9 @@ export async function POST(req: NextRequest) {
         retrievalTimeMs: retrieval.retrievalTime,
         totalTimeMs: totalTime,
         chunksCount: retrieval.chunks.length
-      }
-    })
+      },
+      action: 'chat_query_streaming_started'
+    }, '[MONITOR] Chat query streaming started')
 
     // 返回流式响应
     return new Response(stream, {
@@ -322,7 +327,7 @@ export async function POST(req: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Chat query error:', error)
+    logger.error({ error, action: 'chat_query_error' }, 'Chat query error')
     return NextResponse.json(
       { 
         error: '服务器错误，请稍后重试',
@@ -342,11 +347,12 @@ function handleRetrievalError(error: unknown): NextResponse {
   const errorCode = error && typeof error === 'object' && 'code' in error ? (error as { code: string }).code : undefined
   const errorMessage = error instanceof Error ? error.message : String(error)
   
-  console.error('[ChatQuery] Retrieval error:', {
+  logger.error({
     name: errorName,
     code: errorCode,
-    message: errorMessage
-  })
+    message: errorMessage,
+    action: 'retrieval_error'
+  }, '[ChatQuery] Retrieval error')
 
   // 查询向量化错误
   if (error instanceof QueryVectorizationError) {

@@ -9,6 +9,7 @@ import { db } from '@/lib/db'
 import { userUsage } from '@/drizzle/schema'
 import { eq, sql } from 'drizzle-orm'
 import { createId } from '@paralleldrive/cuid2'
+import { logger } from '@/lib/logger'
 
 /**
  * 使用量统计服务
@@ -52,7 +53,12 @@ export class UsageService {
           })
       }
     } catch (error: any) {
-      console.error('Failed to increment query count:', error)
+      logger.error({ 
+        service: 'UsageService',
+        userId,
+        error: error.message,
+        action: 'increment_query_error'
+      }, 'Failed to increment query count')
       // 不抛出错误，统计失败不影响主流程
     }
   }

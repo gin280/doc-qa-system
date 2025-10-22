@@ -11,6 +11,7 @@ import { VectorRepositoryFactory } from '@/infrastructure/vector/vector-reposito
 import { vectorConfig } from '@/config/vector.config'
 import { queryCacheService } from './queryCacheService'
 import type { RetrievalResult, RetrievalOptions, RetrievalChunk } from '@/types/rag'
+import { logger, logRetrieval, sanitizeQuery } from '@/lib/logger'
 
 /**
  * 检索错误类型
@@ -64,13 +65,14 @@ export class RetrievalService {
       if (useCache && queryCacheService.isEnabled()) {
         const cached = await queryCacheService.getCachedResult(documentId, trimmedQuery)
         if (cached) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('[RetrievalService] Cache hit:', {
-              documentId,
-              queryLength: trimmedQuery.length,
-              cached: true
-            })
-          }
+          logger.info({
+            documentId,
+            userId,
+            queryPreview: sanitizeQuery(trimmedQuery),
+            queryLength: trimmedQuery.length,
+            cacheHit: true,
+            action: 'retrieval_cache_hit'
+          }, 'Retrieval cache hit')
           return cached
         }
       }
@@ -81,21 +83,17 @@ export class RetrievalService {
         queryVectorizer.vectorizeQuery(trimmedQuery)
       ])
 
-      const vectorizeTime = Date.now() - startTime
-
       // 4. 向量相似度检索
       const searchStartTime = Date.now()
       
-      // 调试日志
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[RetrievalService] Calling vectorRepo.search with:', {
-          queryVectorLength: queryVector.length,
-          topK: Math.max(topK, 10),
-          minScore,
-          documentId,
-          userId
-        })
-      }
+      logger.debug({
+        queryVectorLength: queryVector.length,
+        topK: Math.max(topK, 10),
+        minScore,
+        documentId,
+        userId,
+        action: 'retrieval_search_start'
+      }, 'Vector search starting')
       
       const vectorResults = await this.vectorRepo.search(queryVector, {
         topK: Math.max(topK, 10), // 多取一些结果用于过滤
@@ -104,14 +102,12 @@ export class RetrievalService {
       })
       const searchTime = Date.now() - searchStartTime
       
-      // 调试日志
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[RetrievalService] Vector search completed:', {
-          resultsCount: vectorResults.length,
-          searchTime: `${searchTime}ms`,
-          topScores: vectorResults.slice(0, 3).map(r => r.score)
-        })
-      }
+      logger.debug({
+        resultsCount: vectorResults.length,
+        searchTime,
+        topScores: vectorResults.slice(0, 3).map(r => r.score),
+        action: 'retrieval_search_complete'
+      }, 'Vector search completed')
 
       // 5. 检查是否有足够的相关结果
       if (vectorResults.length === 0) {
@@ -168,40 +164,39 @@ export class RetrievalService {
         queryCacheService.setCachedResult(documentId, trimmedQuery, result)
           .catch(err => {
             // 缓存失败不影响主流程
-            console.warn('[RetrievalService] Failed to cache result:', err.message)
+            logger.warn({
+              error: err.message,
+              documentId,
+              userId,
+              action: 'retrieval_cache_write_error'
+            }, 'Failed to cache retrieval result')
           })
       }
 
-      // 9. 记录日志 (AC10: 查询内容脱敏，仅记录前50字符)
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[RetrievalService] Retrieval completed:', {
-          userId,
-          documentId,
-          query: trimmedQuery.slice(0, 50) + (trimmedQuery.length > 50 ? '...' : ''), // 脱敏处理
-          queryLength: trimmedQuery.length,
-          vectorizeTime: `${vectorizeTime}ms`,
-          searchTime: `${searchTime}ms`,
-          totalTime: `${result.retrievalTime}ms`,
-          chunksFound: chunks.length,
-          maxScore: chunks[0]?.score?.toFixed(3),
-          cached: false,
-          topK
-        })
-      }
+      // 9. 记录检索成功日志
+      logRetrieval({
+        userId,
+        queryPreview: sanitizeQuery(trimmedQuery),
+        documentIds: [documentId],
+        chunksFound: chunks.length,
+        retrievalTime: result.retrievalTime,
+        cacheHit: false,
+        success: true
+      })
 
       return result
 
     } catch (error) {
       const elapsed = Date.now() - startTime
       
-      // 错误日志也进行查询内容脱敏
-      console.error('[RetrievalService] Retrieval failed:', {
+      // 记录检索失败日志
+      logRetrieval({
         userId,
-        documentId,
-        query: query.slice(0, 50) + (query.length > 50 ? '...' : ''), // 脱敏处理
-        error: error instanceof Error ? error.message : String(error),
-        code: error && typeof error === 'object' && 'code' in error ? error.code : undefined,
-        elapsed: `${elapsed}ms`
+        queryPreview: sanitizeQuery(query),
+        documentIds: [documentId],
+        retrievalTime: elapsed,
+        success: false,
+        error: error instanceof Error ? error.message : String(error)
       })
 
       // 如果已经是我们的自定义错误，直接抛出

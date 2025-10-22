@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { conversations, documents } from '@/drizzle/schema'
 import { eq, desc, and, sql, ilike } from 'drizzle-orm'
 import { getErrorMessage } from '@/types/errors'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/conversations
@@ -71,16 +72,15 @@ export async function GET(req: NextRequest) {
     const total = Number(count)
     const hasMore = offset + conversationList.length < total
 
-    // 开发环境记录日志
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[Conversations API] List retrieved', {
-        userId: session.user.id,
-        page,
-        limit,
-        total,
-        returned: conversationList.length
-      })
-    }
+    // 记录日志
+    logger.info({
+      userId: session.user.id,
+      page,
+      limit,
+      total,
+      returned: conversationList.length,
+      action: 'conversations_list_retrieved'
+    }, '[Conversations API] List retrieved')
 
     return NextResponse.json({
       conversations: conversationList,
@@ -93,9 +93,10 @@ export async function GET(req: NextRequest) {
     })
 
   } catch (error: unknown) {
-    console.error('[Conversations API] Failed to get conversations', {
-      error: getErrorMessage(error)
-    })
+    logger.error({
+      error: getErrorMessage(error),
+      action: 'get_conversations_error'
+    }, '[Conversations API] Failed to get conversations')
 
     return NextResponse.json(
       { error: '获取对话列表失败' },

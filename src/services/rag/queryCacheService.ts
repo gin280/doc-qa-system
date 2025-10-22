@@ -6,6 +6,7 @@
 import { Redis } from '@upstash/redis'
 import { createHash } from 'crypto'
 import type { RetrievalResult } from '@/types/rag'
+import { logger, logCache } from '@/lib/logger'
 
 /**
  * 查询缓存服务类
@@ -23,14 +24,19 @@ export class QueryCacheService {
           url: process.env.UPSTASH_REDIS_REST_URL,
           token: process.env.UPSTASH_REDIS_REST_TOKEN
         })
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[QueryCacheService] Redis initialized successfully')
-        }
+        logger.info({
+          action: 'cache_redis_init_success'
+        }, 'Redis initialized successfully')
       } catch (error) {
-        console.warn('[QueryCacheService] Failed to initialize Redis:', error)
+        logger.warn({
+          error: error instanceof Error ? error.message : String(error),
+          action: 'cache_redis_init_error'
+        }, 'Failed to initialize Redis')
       }
     } else {
-      console.warn('[QueryCacheService] Redis not configured, query caching disabled')
+      logger.warn({
+        action: 'cache_redis_not_configured'
+      }, 'Redis not configured, query caching disabled')
     }
   }
 
@@ -68,7 +74,11 @@ export class QueryCacheService {
       
       return null
     } catch (error) {
-      console.warn('[QueryCacheService] Failed to get cached result:', error)
+      logger.warn({
+        error: error instanceof Error ? error.message : String(error),
+        documentId,
+        action: 'cache_get_error'
+      }, 'Failed to get cached result')
       return null
     }
   }
@@ -92,15 +102,17 @@ export class QueryCacheService {
       // 使用setex设置带TTL的缓存
       await this.redis.setex(key, this.CACHE_TTL, JSON.stringify(result))
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[QueryCacheService] Cached retrieval result:', {
-          key,
-          ttl: this.CACHE_TTL,
-          chunksCount: result.chunks.length
-        })
-      }
+      logCache({
+        cacheKey: key,
+        hit: false,
+        missTime: this.CACHE_TTL
+      })
     } catch (error) {
-      console.warn('[QueryCacheService] Failed to cache result:', error)
+      logger.warn({
+        error: error instanceof Error ? error.message : String(error),
+        documentId,
+        action: 'cache_set_error'
+      }, 'Failed to cache result')
       // 不抛出错误，缓存失败不影响主流程
     }
   }
@@ -123,13 +135,18 @@ export class QueryCacheService {
         // 批量删除
         await this.redis.del(...keys)
         
-        console.log('[QueryCacheService] Invalidated document query cache:', {
+        logger.info({
           documentId,
-          keysDeleted: keys.length
-        })
+          keysDeleted: keys.length,
+          action: 'cache_invalidate_success'
+        }, 'Invalidated document query cache')
       }
     } catch (error) {
-      console.warn('[QueryCacheService] Failed to invalidate document cache:', error)
+      logger.warn({
+        error: error instanceof Error ? error.message : String(error),
+        documentId,
+        action: 'cache_invalidate_error'
+      }, 'Failed to invalidate document cache')
     }
   }
 
@@ -162,7 +179,11 @@ export class QueryCacheService {
         documentKeys: documentId ? keys.length : undefined
       }
     } catch (error) {
-      console.warn('[QueryCacheService] Failed to get cache stats:', error)
+      logger.warn({
+        error: error instanceof Error ? error.message : String(error),
+        documentId,
+        action: 'cache_stats_error'
+      }, 'Failed to get cache stats')
       return { enabled: true }
     }
   }

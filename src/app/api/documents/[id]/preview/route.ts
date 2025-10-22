@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { documents } from '@/drizzle/schema'
 import { eq, and } from 'drizzle-orm'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/documents/:id/preview
@@ -70,7 +71,7 @@ export async function GET(
     })
 
   } catch (error) {
-    console.error('Preview error:', error)
+    logger.error({ error: error, action: 'error' }, 'Preview error:')
     return NextResponse.json(
       { error: '服务器错误' },
       { status: 500 }

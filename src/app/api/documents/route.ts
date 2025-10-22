@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { documents } from '@/drizzle/schema'
 import { eq, and, like, desc, asc, count } from 'drizzle-orm'
+import { logger } from '@/lib/logger'
 
 /**
  * GET /api/documents
@@ -82,7 +83,7 @@ export async function GET(req: NextRequest) {
     })
 
   } catch (error) {
-    console.error('List documents error:', error)
+    logger.error({ error: error, action: 'error' }, 'List documents error:')
     return NextResponse.json(
       { error: '服务器错误' },
       { status: 500 }
