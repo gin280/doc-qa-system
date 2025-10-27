@@ -1,0 +1,129 @@
+schema: 1
+story: '4.10'
+story_title: 'E2E 集成测试'
+gate: PENDING  # 将在实际审查后更新
+status_reason: '等待Story实现完成后进行审查'
+reviewer: 'Quinn (Test Architect)'
+updated: '2025-01-15T10:00:00Z'
+
+# 测试设计评估
+test_design:
+  scenarios_total: 21
+  by_level:
+    unit: 6      # E2E辅助函数和清理机制
+    integration: 15  # 完整流程、边界情况、性能基准
+    e2e: 0       # 此Story本身是构建E2E测试框架
+  by_priority:
+    p0: 10       # 核心E2E框架和完整流程
+    p1: 9        # 边界情况和性能基准
+    p2: 2        # CI/CD集成
+  coverage_gaps: []  # 所有AC都有测试覆盖
+  
+  # 测试场景映射
+  ac_coverage:
+    AC1_完整问答流程:
+      scenarios: [UNIT-001, UNIT-002, UNIT-003, INT-001, INT-002, INT-003, INT-004, INT-005, INT-006, INT-007]
+      coverage: 'FULL'
+    AC2_边界情况:
+      scenarios: [INT-008, INT-009, INT-010, INT-011, INT-012]
+      coverage: 'FULL'
+    AC3_性能基准:
+      scenarios: [INT-013, INT-014, INT-015, INT-016]
+      coverage: 'FULL'
+    AC4_数据清理:
+      scenarios: [UNIT-004, UNIT-005, UNIT-006, INT-017, INT-018, INT-019]
+      coverage: 'FULL'
+    AC5_CI_CD集成:
+      scenarios: [INT-020, INT-021]
+      coverage: 'FULL'
+
+# 风险评估
+risk_summary:
+  totals:
+    critical: 0
+    high: 3      # 测试数据泄漏、环境污染、清理失败
+    medium: 5    # 并发问题、性能测试不稳定等
+    low: 3       # CI配置、文档不全等
+  highest:
+    id: RISK-E2E-008
+    score: 6
+    title: '测试数据泄漏导致环境污染'
+  recommendations:
+    must_fix:
+      - '实现完整的cleanup机制(DB + Storage + Redis)'
+      - '使用唯一的timestamp-based userId确保测试隔离'
+      - '添加手动清理脚本作为fallback'
+    monitor:
+      - '监控E2E测试执行时间,超过10分钟需优化'
+      - '定期检查测试数据库,确认无遗留数据'
+
+# NFR验证
+nfr_validation:
+  _assessed: [maintainability, reliability, performance]
+  maintainability:
+    status: PASS
+    notes: '测试代码结构清晰,辅助函数可复用,维护成本低'
+  reliability:
+    status: PASS
+    notes: 'cleanup机制完善,测试隔离性强,失败也能清理'
+  performance:
+    status: PASS
+    notes: 'E2E测试预计执行时间≤10分钟,性能基准明确'
+
+# 实施建议
+recommendations:
+  immediate:
+    - action: '优先实现E2E辅助函数和cleanup机制'
+      refs: ['tests/integration/e2e/helpers/']
+      priority: 'P0'
+    - action: '创建测试固件(empty.pdf, 10mb.pdf, technical-doc.pdf)'
+      refs: ['tests/fixtures/pdf/']
+      priority: 'P0'
+  future:
+    - action: '添加错误恢复测试(文档处理失败回滚)'
+      refs: ['tests/integration/e2e/error-recovery.test.ts']
+      priority: 'P2'
+    - action: '添加安全性测试(未授权访问、SQL注入)'
+      refs: ['tests/integration/e2e/security.test.ts']
+      priority: 'P2'
+
+# 依赖和阻塞
+dependencies:
+  required_stories:
+    - '4.2: Query Embedding 缓存 (用于验证缓存效果)'
+    - '4.5: 边界情况处理增强 (用于验证边界处理)'
+  required_env:
+    - 'Supabase Database (测试实例)'
+    - 'Supabase Storage (测试bucket)'
+    - 'Redis (Upstash测试实例)'
+    - 'OpenAI API Key (可选,支持Mock)'
+
+# 质量指标
+quality_metrics:
+  test_coverage_target: '5%'  # E2E测试贡献的覆盖率提升
+  pass_rate_target: '100%'    # P0测试必须100%通过
+  execution_time_limit: '10min'  # 不含性能测试
+  cleanup_success_rate: '100%'   # 清理必须100%成功
+
+# 测试设计文档引用
+test_design_doc: 'docs/qa/assessments/4.10-test-design-20250115.md'
+
+# 预期Gate状态
+expected_gate: PASS
+expected_gate_reasoning: |
+  测试设计覆盖所有AC,测试级别分配合理(unit/integration),
+  优先级基于风险评估(P0: 核心框架, P1: 边界和性能),
+  清理机制完善,测试隔离性强。
+  
+  预计实现完成后,如果满足以下条件将给予PASS:
+  - 所有P0测试场景通过率100%
+  - 所有P1测试场景通过率≥90%
+  - cleanup机制验证通过(无遗留数据)
+  - E2E测试执行时间≤10分钟
+
+# 更新记录
+change_log:
+  - date: '2025-01-15'
+    author: 'Quinn (Test Architect)'
+    change: '创建测试设计模板和初始评估'
+
