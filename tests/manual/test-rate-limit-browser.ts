@@ -64,7 +64,7 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit.
 async function uploadFile(sessionCookie: string, fileNumber: number): Promise<Response> {
   const formData = new FormData();
   const fileContent = createTestFile();
-  const blob = new Blob([fileContent], { type: 'text/markdown' });
+  const blob = new Blob([fileContent.toString()], { type: 'text/markdown' });
   formData.append('file', blob, `test-${fileNumber}.md`);
 
   return fetch(`${API_BASE}/api/documents/upload`, {

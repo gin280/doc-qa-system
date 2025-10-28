@@ -6,7 +6,7 @@ import GitHubProvider from 'next-auth/providers/github';
 import { db } from '@/lib/db';
 import { users } from '@/drizzle/schema';
 import { eq } from 'drizzle-orm';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit';
 
 const authOptions: NextAuthConfig = {
