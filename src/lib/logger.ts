@@ -12,20 +12,17 @@ import pino from 'pino'
 
 /**
  * 获取 Pino 传输配置
+ * 
+ * ⚠️ Vercel Serverless 兼容性说明:
+ * - pino transport 依赖 worker threads，在 Vercel serverless 中不可用
+ * - 生产环境使用标准 JSON 输出到 Vercel logs（自动集成）
+ * - 如需 Axiom，通过 Vercel Logs 集成（而非 pino-axiom transport）
  */
 function getTransportConfig() {
-  // 生产环境: 发送 error/fatal 到 Axiom
-  if (process.env.NODE_ENV === 'production' && process.env.AXIOM_TOKEN) {
-    return {
-      target: 'pino-axiom',
-      options: {
-        dataset: process.env.AXIOM_DATASET || 'docqa-system',
-        token: process.env.AXIOM_TOKEN,
-        orgId: process.env.AXIOM_ORG_ID,
-        // MVP策略: 只发送重要日志,节省配额
-        levels: ['error', 'fatal']
-      }
-    }
+  // 生产环境: 标准 JSON 输出到 Vercel logs（不使用 transport）
+  // Vercel 自动收集 stdout/stderr，可在 Dashboard 查看
+  if (process.env.NODE_ENV === 'production') {
+    return undefined
   }
 
   // 开发环境: pino-pretty 美化输出
