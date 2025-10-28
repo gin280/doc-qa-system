@@ -128,7 +128,7 @@ async function getLastMessage(
     .where(
       and(
         eq(messages.conversationId, conversation.id),
-        eq(messages.role, 'assistant'),
+        eq(messages.role, 'ASSISTANT'),
         eq(messages.content, answerContent)
       )
     )
@@ -136,21 +136,21 @@ async function getLastMessage(
     .limit(1);
 
   if (!message) {
-    // 如果找不到精确匹配,返回最新的 assistant 消息
+    // 如果找不到精确匹配,返回最新的 ASSISTANT 消息
     const [latestMessage] = await db
       .select()
       .from(messages)
       .where(
         and(
           eq(messages.conversationId, conversation.id),
-          eq(messages.role, 'assistant')
+          eq(messages.role, 'ASSISTANT')
         )
       )
       .orderBy(desc(messages.createdAt))
       .limit(1);
 
     if (!latestMessage) {
-      throw new Error('No assistant message found');
+      throw new Error('No ASSISTANT message found');
     }
 
     return {

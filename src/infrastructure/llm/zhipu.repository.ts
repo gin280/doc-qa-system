@@ -54,8 +54,8 @@ export class ZhipuRepository implements ILLMRepository {
       throw new Error(`智谱AI Embeddings失败: ${error}`)
     }
 
-    const data = await response.json()
-    return data.data.map((item: any) => item.embedding)
+    const data = await response.json() as { data: Array<{ embedding: number[] }> }
+    return data.data.map((item) => item.embedding)
   }
 
   async generateChatCompletion(

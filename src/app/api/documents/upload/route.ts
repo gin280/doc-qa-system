@@ -13,7 +13,6 @@ import {
 import { StorageService } from '@/services/documents/storageService'
 import { checkUploadRateLimit, logRateLimitExceeded } from '@/lib/rateLimit'
 import { logger, logDocumentUpload, logError } from '@/lib/logger'
-import { logger } from '@/lib/logger'
 
 const MAX_DOCUMENTS_PER_USER = 50
 const MAX_STORAGE_PER_USER = 500 * 1024 * 1024  // 500MB
@@ -38,15 +37,16 @@ const ALLOWED_MIME_TYPES = [
  * - PERF-002: 客户端已限制批量大小
  */
 export async function POST(req: NextRequest) {
+  // 1. 认证检查 (在 try 块外，确保 catch 块可以访问)
+  const session = await auth()
+  if (!session?.user) {
+    return NextResponse.json(
+      { error: '未授权，请先登录' },
+      { status: 401 }
+    )
+  }
+
   try {
-    // 1. 认证检查
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: '未授权，请先登录' },
-        { status: 401 }
-      )
-    }
 
     // ✨ 2. Story 4.1: 速率限制检查 + 性能优化（并行化）
     // PERF-001: 并行执行速率检查和formData解析以减少延迟

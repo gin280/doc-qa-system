@@ -313,7 +313,7 @@ export function useDocumentUpload() {
         })
       }
     }
-  }, [isUploading, uploadFile])
+  }, [isUploading, uploadFile, items])
 
   // 取消上传
   const cancelUpload = useCallback((id: string) => {

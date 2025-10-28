@@ -6,7 +6,7 @@
  */
 
 import { db } from '@/lib/db'
-import { conversations, messages } from '@/drizzle/schema'
+import { conversations, messages, type Citation } from '@/drizzle/schema'
 import { eq, desc, and } from 'drizzle-orm'
 import { createId } from '@paralleldrive/cuid2'
 
@@ -117,7 +117,7 @@ export class ConversationService {
   async createAssistantMessage(
     conversationId: string,
     content: string,
-    citations: any[] = [],
+    citations: Partial<Citation>[] = [],
     tokenCount: number = 0
   ) {
     const messageId = createId()

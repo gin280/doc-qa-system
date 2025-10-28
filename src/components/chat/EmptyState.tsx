@@ -11,6 +11,12 @@ interface EmptyStateProps {
   onUploadClick?: () => void;
 }
 
+interface DocumentStatus {
+  id: string;
+  status: 'PENDING' | 'PARSING' | 'EMBEDDING' | 'READY' | 'ERROR';
+  [key: string]: unknown;
+}
+
 /**
  * EmptyState - 对话为空状态
  * 
@@ -34,11 +40,11 @@ export function EmptyState({ selectedDocument, onExampleClick, onUploadClick }: 
         const res = await fetch('/api/documents?page=1&limit=100'); // 获取足够多的文档来检查状态
         if (res.ok) {
           const data = await res.json();
-          const docs = data.documents || [];
+          const docs: DocumentStatus[] = data.documents || [];
           setDocumentStatus({
             hasAny: docs.length > 0,
-            hasReady: docs.some((d: any) => d.status === 'READY'),
-            hasProcessing: docs.some((d: any) => 
+            hasReady: docs.some((d) => d.status === 'READY'),
+            hasProcessing: docs.some((d) => 
               ['PENDING', 'PARSING', 'EMBEDDING'].includes(d.status)
             )
           });

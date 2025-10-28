@@ -63,7 +63,7 @@ export async function chunkDocument(
 
     // 4. 获取已解析的文本内容
     // 从metadata.content获取(假设Story 2.3存储在这里)
-    const metadata = document.metadata as Record<string, any> | null
+    const metadata = document.metadata as Record<string, unknown> | null
     const parsedContent = metadata?.content as string
     
     // 检查内容是否存在
@@ -195,7 +195,7 @@ export async function chunkDocument(
       .set({
         status: 'FAILED',
         metadata: {
-          ...(currentDoc?.metadata as Record<string, any> || {}),
+          ...(currentDoc?.metadata as Record<string, unknown> || {}),
           error: {
             type: errorType,
             message: error instanceof Error ? error.message : '未知错误',

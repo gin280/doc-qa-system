@@ -101,7 +101,7 @@ export class EmbeddingCacheService {
    * @param vector 待验证的向量
    * @returns true: 有效, false: 无效
    */
-  private validateVector(vector: any): vector is number[] {
+  private validateVector(vector: unknown): vector is number[] {
     // 1. 验证类型
     if (!Array.isArray(vector)) {
       logger.warn({ 

@@ -123,16 +123,19 @@ export class RetrievalService {
         if (seenIds.has(r.id)) continue
         seenIds.add(r.id)
 
+        // 类型断言metadata
+        const meta = r.metadata as { documentId: string; chunkIndex: number; content: string; pageNumber?: number; section?: string }
+
         // 格式化chunk
         chunks.push({
           id: r.id,
-          documentId: r.metadata.documentId,
-          chunkIndex: r.metadata.chunkIndex,
-          content: r.metadata.content,
+          documentId: meta.documentId,
+          chunkIndex: meta.chunkIndex,
+          content: meta.content,
           score: r.score,
           metadata: {
-            pageNumber: r.metadata.pageNumber,
-            section: r.metadata.section
+            pageNumber: meta.pageNumber,
+            section: meta.section
           }
         })
 

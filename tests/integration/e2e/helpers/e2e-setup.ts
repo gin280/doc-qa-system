@@ -33,8 +33,6 @@ export async function setupE2ETest(): Promise<E2ETestContext> {
     id: userId,
     email: userEmail,
     name: userName,
-    emailVerified: new Date(),
-    createdAt: new Date(),
   });
 
   console.log(`✅ Created E2E test user: ${userId}`);
@@ -113,7 +111,7 @@ async function cleanupStorageFiles(documentIds: string[]): Promise<void> {
 
     if (docs.length > 0) {
       const filePaths = docs
-        .map((doc) => doc.filePath)
+        .map((doc) => doc.storagePath)
         .filter((path): path is string => path !== null);
 
       if (filePaths.length > 0) {

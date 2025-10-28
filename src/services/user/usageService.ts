@@ -52,11 +52,12 @@ export class UsageService {
             updatedAt: new Date()
           })
       }
-    } catch (error: any) {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
       logger.error({ 
         service: 'UsageService',
         userId,
-        error: error.message,
+        error: errorMessage,
         action: 'increment_query_error'
       }, 'Failed to increment query count')
       // 不抛出错误，统计失败不影响主流程

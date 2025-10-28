@@ -18,7 +18,7 @@ export interface RetrievalResult {
     content: string
     score: number
     chunkIndex: number
-    metadata?: any
+    metadata?: Record<string, unknown>
   }>
   totalFound: number
   cached: boolean
@@ -183,20 +183,21 @@ export class AnswerService {
         action: 'generation_success'
       }, 'Answer generation completed')
 
-    } catch (error: any) {
+    } catch (error) {
       const elapsed = Date.now() - startTime
+      const errorMessage = error instanceof Error ? error.message : String(error)
       
       // 记录生成失败
       logger.error({
-        error: error.message,
+        error: errorMessage,
         generationTime: elapsed,
         action: 'generation_error'
       }, 'Answer generation failed')
 
       // 友好错误处理
-      if (error.message.includes('timeout')) {
+      if (errorMessage.includes('timeout')) {
         throw new Error('GENERATION_TIMEOUT')
-      } else if (error.message.includes('quota') || error.message.includes('limit')) {
+      } else if (errorMessage.includes('quota') || errorMessage.includes('limit')) {
         throw new Error('QUOTA_EXCEEDED')
       } else {
         throw new Error('GENERATION_ERROR')

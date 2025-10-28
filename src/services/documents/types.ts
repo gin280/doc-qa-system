@@ -4,7 +4,7 @@
 export interface ParseResult {
   content: string          // 提取的纯文本内容
   contentLength: number    // 字符数
-  metadata: Record<string, any>  // 文档元信息
+  metadata: Record<string, unknown>  // 文档元信息
 }
 
 /**

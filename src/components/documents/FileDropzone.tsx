@@ -1,6 +1,6 @@
 'use client'
 
-import { useDropzone } from 'react-dropzone'
+import { useDropzone, type FileRejection } from 'react-dropzone'
 import { Upload } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -10,14 +10,14 @@ interface FileDropzoneProps {
 }
 
 export function FileDropzone({ onFilesSelected, disabled }: FileDropzoneProps) {
-  const handleDrop = (acceptedFiles: File[], rejectedFiles: any[]) => {
+  const handleDrop = (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
     console.log('[FileDropzone] Files dropped:', { 
       accepted: acceptedFiles.length, 
       rejected: rejectedFiles.length,
       acceptedFiles: acceptedFiles.map(f => ({ name: f.name, size: f.size, type: f.type })),
       rejectedFiles: rejectedFiles.map(r => ({ 
         file: r.file.name, 
-        errors: r.errors.map((e: any) => e.message) 
+        errors: r.errors.map((e) => e.message) 
       }))
     })
     

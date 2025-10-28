@@ -4,7 +4,7 @@
 export interface VectorDocument {
   id: string
   vector: number[]
-  metadata: Record<string, any>
+  metadata: Record<string, unknown>
 }
 
 /**
@@ -12,14 +12,14 @@ export interface VectorDocument {
  */
 export interface VectorSearchOptions {
   topK?: number                    // 返回Top-K结果(默认10)
-  filter?: Record<string, any>     // 过滤条件
+  filter?: Record<string, unknown>     // 过滤条件
   minScore?: number                // 最小相似度阈值(0-1)
 }
 
 /**
  * 向量搜索结果
  */
-export interface VectorSearchResult<T = any> {
+export interface VectorSearchResult<T = Record<string, unknown>> {
   id: string
   score: number    // 相似度分数(0-1)
   metadata: T
@@ -43,7 +43,7 @@ export interface IVectorRepository {
   /**
    * 向量相似度搜索
    */
-  search<T = any>(
+  search<T = Record<string, unknown>>(
     vector: number[],
     options?: VectorSearchOptions
   ): Promise<VectorSearchResult<T>[]>

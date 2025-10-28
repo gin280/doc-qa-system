@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
 import { documentChunks, documents } from '@/drizzle/schema'
-import { sql, eq, and, inArray } from 'drizzle-orm'
+import { sql, eq, and, inArray, type SQL } from 'drizzle-orm'
 import type {
   IVectorRepository,
   VectorDocument,
@@ -14,11 +14,12 @@ import type {
  */
 export class PgVectorRepository implements IVectorRepository {
   async upsert(document: VectorDocument): Promise<void> {
+    const meta = document.metadata as { documentId: string; chunkIndex: number; content?: string; [key: string]: unknown }
     await db.insert(documentChunks).values({
       id: document.id,
-      documentId: document.metadata.documentId,
-      chunkIndex: document.metadata.chunkIndex,
-      content: document.metadata.content || '',
+      documentId: meta.documentId,
+      chunkIndex: meta.chunkIndex,
+      content: meta.content || '',
       embeddingId: document.id,
       metadata: document.metadata
     }).onConflictDoUpdate({
@@ -41,14 +42,17 @@ export class PgVectorRepository implements IVectorRepository {
     if (documents.length === 0) return
 
     // 批量插入基础记录（如果不存在）
-    const values = documents.map(doc => ({
-      id: doc.id,
-      documentId: doc.metadata.documentId,
-      chunkIndex: doc.metadata.chunkIndex,
-      content: doc.metadata.content || '',
-      embeddingId: doc.id,
-      metadata: doc.metadata
-    }))
+    const values = documents.map(doc => {
+      const meta = doc.metadata as { documentId: string; chunkIndex: number; content?: string; [key: string]: unknown }
+      return {
+        id: doc.id,
+        documentId: meta.documentId,
+        chunkIndex: meta.chunkIndex,
+        content: meta.content || '',
+        embeddingId: doc.id,
+        metadata: doc.metadata
+      }
+    })
     
     await db.insert(documentChunks)
       .values(values)
@@ -70,7 +74,7 @@ export class PgVectorRepository implements IVectorRepository {
     }
   }
 
-  async search<T = any>(
+  async search<T = Record<string, unknown>>(
     vector: number[],
     options: VectorSearchOptions = {}
   ): Promise<VectorSearchResult<T>[]> {
@@ -89,23 +93,25 @@ export class PgVectorRepository implements IVectorRepository {
     }
 
     // 构建WHERE条件
-    const conditions: any[] = []
+    const conditions: SQL[] = []
     
     // 处理特殊过滤条件：documentId 和 userId
-    if (filter?.documentId) {
-      conditions.push(eq(documentChunks.documentId, filter.documentId))
+    const filterTyped = filter as { documentId?: string; userId?: string; [key: string]: unknown } | undefined
+    
+    if (filterTyped?.documentId) {
+      conditions.push(eq(documentChunks.documentId, filterTyped.documentId))
       if (process.env.NODE_ENV === 'development') {
         console.log('[PgVectorRepository] Added documentId condition')
       }
     }
     
-    if (filter?.userId) {
+    if (filterTyped?.userId) {
       // 通过documents表关联验证用户权限
       conditions.push(
         sql`EXISTS (
           SELECT 1 FROM ${documents} 
           WHERE ${documents.id} = ${documentChunks.documentId}
-          AND ${documents.userId} = ${filter.userId}
+          AND ${documents.userId} = ${filterTyped.userId}
         )`
       )
       if (process.env.NODE_ENV === 'development') {
@@ -183,7 +189,7 @@ export class PgVectorRepository implements IVectorRepository {
           documentId: r.documentId,
           chunkIndex: r.chunkIndex,
           content: r.content,
-          ...(r.metadata as Record<string, any>)
+          ...(r.metadata as Record<string, unknown>)
         } as T
       }))
 

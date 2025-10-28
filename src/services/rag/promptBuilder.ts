@@ -10,7 +10,7 @@ export interface RetrievalChunk {
   content: string
   score: number
   chunkIndex: number
-  metadata?: any
+  metadata?: Record<string, unknown>
 }
 
 /**

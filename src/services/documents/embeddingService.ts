@@ -296,7 +296,7 @@ export async function embedAndStoreChunks(
     }
 
     // 9. 更新文档状态为READY
-    const existingMetadata = (document.metadata as Record<string, any>) || {}
+    const existingMetadata = (document.metadata as Record<string, unknown>) || {}
     // dimension已经在函数开头定义过了，这里直接使用
     
     await db.update(documents)
@@ -344,7 +344,7 @@ export async function embedAndStoreChunks(
       .set({
         status: 'FAILED',
         metadata: {
-          ...(currentDoc?.metadata as Record<string, any> || {}),
+          ...(currentDoc?.metadata as Record<string, unknown> || {}),
           error: {
             type: error instanceof EmbeddingError ? error.type : 'EMBEDDING_ERROR',
             message: error instanceof Error ? error.message : '未知错误',
