@@ -78,16 +78,34 @@ export async function POST(
     // 4. 执行解析
     const result = await parseDocument(documentId)
 
-    // 5. 触发异步处理(分块和向量化) - 不等待完成
-    fetch(`${req.nextUrl.origin}/api/documents/${document.id}/process`, {
-      method: 'POST',
-      headers: {
-        'Cookie': req.headers.get('Cookie') || ''
-      }
-    }).catch(err => {
-      logger.error({ error: err, action: 'error' }, 'Failed to trigger processing:')
-      // 处理失败不影响解析成功响应
-    })
+    // 5. 同步执行分块和向量化（Vercel serverless 需要同步执行以避免中断）
+    try {
+      const { chunkDocument } = await import('@/services/documents/chunkingService')
+      const { embedAndStoreChunks } = await import('@/services/documents/embeddingService')
+      
+      // 执行分块
+      const chunks = await chunkDocument(documentId)
+      
+      // 执行向量化
+      await embedAndStoreChunks(documentId, chunks)
+      
+      logger.info({ 
+        documentId, 
+        chunksCount: chunks.length,
+        action: 'info' 
+      }, 'Document processing completed successfully')
+      
+    } catch (processError) {
+      // 处理失败记录日志，但不影响解析成功的响应
+      logger.error({ 
+        documentId,
+        error: processError, 
+        action: 'error' 
+      }, 'Document processing failed after parse')
+      
+      // 可以选择在这里返回部分成功的响应
+      // 但为了简化，我们仍然返回成功，文档状态会在 embedAndStoreChunks 中正确设置
+    }
 
     // 6. 返回成功响应
     return NextResponse.json({
