@@ -57,6 +57,22 @@ UPSTASH_REDIS_REST_TOKEN=your-redis-token
 # GOOGLE_CLIENT_SECRET=your-google-client-secret
 # GITHUB_CLIENT_ID=your-github-client-id
 # GITHUB_CLIENT_SECRET=your-github-client-secret
+
+# ============================================
+# Ragas评估服务配置 (可选 - 仅用于RAG质量评估)
+# Story 5.1新增
+# ============================================
+# RAGAS_API_URL=http://localhost:8000
+# RAGAS_ENABLED=false
+# RAGAS_TIMEOUT=30000
+# RAGAS_CONCURRENCY=5
+# RAGAS_VERBOSE=false
+
+# Ragas使用的LLM配置 (使用智谱AI，推荐 - 国内网络稳定)
+# ZHIPUAI_API_KEY=your-zhipuai-api-key
+
+# 或使用OpenAI (备选 - 可能有网络问题)
+# OPENAI_API_KEY=sk-your-openai-key
 ```
 
 ## 配置说明

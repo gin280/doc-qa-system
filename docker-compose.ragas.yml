@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  ragas-api:
+    image: ragas/ragas-api:latest
+    container_name: docqa-ragas
+    ports:
+      - "8000:8000"
+    environment:
+      # 智谱AI配置（推荐 - 国内网络稳定）
+      # 使用 ZHIPUAI_API_KEY 时会设置 OPENAI_API_KEY 和 OPENAI_BASE_URL
+      - OPENAI_API_KEY=${ZHIPUAI_API_KEY:-${OPENAI_API_KEY}}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://open.bigmodel.cn/api/paas/v4/}
+      - OPENAI_MODEL=${OPENAI_MODEL:-glm-4}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - docqa-network
+
+networks:
+  docqa-network:
+    driver: bridge
+    name: docqa-network
+
