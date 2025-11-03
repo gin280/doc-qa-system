@@ -266,13 +266,14 @@ async function parsePDF(buffer: Buffer): Promise<ParseResult> {
     // 获取元数据
     const metadata = await pdfDocument.getMetadata()
     
-    // 提取元信息
+    // 安全提取元信息（PDF.js metadata.info 可能为 null 或不同类型）
+    const info = metadata.info as Record<string, unknown> | null | undefined
     const result = {
       totalPages: numPages,
-      title: metadata.info?.Title || undefined,
-      author: metadata.info?.Author || undefined,
-      creator: metadata.info?.Creator || undefined,
-      creationDate: metadata.info?.CreationDate || undefined,
+      title: (info && typeof info.Title === 'string') ? info.Title : undefined,
+      author: (info && typeof info.Author === 'string') ? info.Author : undefined,
+      creator: (info && typeof info.Creator === 'string') ? info.Creator : undefined,
+      creationDate: (info && typeof info.CreationDate === 'string') ? info.CreationDate : undefined,
       wordCount: countWords(content)
     }
 
@@ -308,14 +309,20 @@ async function parsePDF(buffer: Buffer): Promise<ParseResult> {
 /**
  * 从PDF页面提取文本
  */
-async function extractPageText(pdfDocument: any, pageNum: number): Promise<string> {
+async function extractPageText(pdfDocument: pdfjsLib.PDFDocumentProxy, pageNum: number): Promise<string> {
   try {
     const page = await pdfDocument.getPage(pageNum)
     const textContent = await page.getTextContent()
     
     // 提取所有文本项
     const textItems = textContent.items
-      .map((item: any) => item.str)
+      .map((item) => {
+        // PDF.js TextItem 可能有不同的类型，安全提取 str 属性
+        if ('str' in item) {
+          return (item as { str: string }).str
+        }
+        return ''
+      })
       .filter((str: string) => str.trim().length > 0)
     
     return textItems.join(' ')
