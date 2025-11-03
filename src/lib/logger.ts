@@ -11,45 +11,23 @@
 import pino from 'pino'
 
 /**
- * 获取 Pino 传输配置
- * 
- * ⚠️ Vercel Serverless 兼容性说明:
- * - pino transport 依赖 worker threads，在 Vercel serverless 中不可用
- * - 生产环境使用标准 JSON 输出到 Vercel logs（自动集成）
- * - 如需 Axiom，通过 Vercel Logs 集成（而非 pino-axiom transport）
- */
-function getTransportConfig() {
-  // 生产环境: 标准 JSON 输出到 Vercel logs（不使用 transport）
-  // Vercel 自动收集 stdout/stderr，可在 Dashboard 查看
-  if (process.env.NODE_ENV === 'production') {
-    return undefined
-  }
-
-  // 开发环境: pino-pretty 美化输出
-  if (process.env.NODE_ENV === 'development') {
-    return {
-      target: 'pino-pretty',
-      options: {
-        colorize: true,
-        translateTime: 'SYS:standard',
-        ignore: 'pid,hostname',
-        singleLine: false
-      }
-    }
-  }
-
-  // 默认: 标准 JSON 输出
-  return undefined
-}
-
-/**
  * 创建 Logger 实例
+ * 
+ * ⚠️ Next.js + Pino 兼容性说明:
+ * - pino-pretty transport 使用 worker threads，在 Next.js webpack 环境会导致路径解析失败
+ * - 错误: "Cannot find module '.next/server/vendor-chunks/lib/worker.js'"
+ * - 解决方案: 开发环境禁用 transport，使用标准 JSON 输出（仍可查看完整日志）
+ * - 生产环境: 标准 JSON 输出到 Vercel logs（自动集成 Axiom）
+ * 
+ * 如需美化输出，可以配合 pino-pretty CLI 使用:
+ * ```bash
+ * npm run dev 2>&1 | npx pino-pretty
+ * ```
  */
 export const logger = pino({
   level: process.env.LOG_LEVEL || 'info',
-  ...(getTransportConfig() && {
-    transport: getTransportConfig()
-  })
+  // 不使用 transport，避免 worker thread 问题
+  // 所有环境都输出标准 JSON 到 stdout/stderr
 })
 
 /**

@@ -6,14 +6,11 @@ import { eq } from 'drizzle-orm'
 import { StorageService } from './storageService'
 import { ParseResult, ParseError } from './types'
 import { logger, logDocumentParsing, logValidationWarning } from '@/lib/logger'
+import * as pdfjsLib from 'pdfjs-dist'
 
 // 重新导出 ParseError 供 API 路由使用
 export { ParseError } from './types'
 export type { ParseResult } from './types'
-
-// 使用require导入pdf-parse以避免TypeScript类型问题
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const PDFParser = require('pdf-parse')
 
 // 解析超时时间(30秒)
 const PARSE_TIMEOUT = 30000
@@ -223,7 +220,7 @@ function isPDFValid(buffer: Buffer): boolean {
 }
 
 /**
- * 解析PDF文档
+ * 解析PDF文档 (使用 PDF.js - 纯JS实现,适合serverless环境)
  */
 async function parsePDF(buffer: Buffer): Promise<ParseResult> {
   try {
@@ -232,33 +229,61 @@ async function parsePDF(buffer: Buffer): Promise<ParseResult> {
       throw new ParseError('PARSE_ERROR', 'PDF文件格式无效')
     }
 
-    const data = await PDFParser(buffer, {
-      // 最大页数限制(防止超大PDF)
-      max: 1000
+    // 将 Buffer 转换为 Uint8Array
+    const uint8Array = new Uint8Array(buffer)
+    
+    // 加载 PDF 文档
+    const loadingTask = pdfjsLib.getDocument({
+      data: uint8Array,
+      // 禁用字体加载以提高性能
+      disableFontFace: true,
+      // 禁用范围请求
+      disableRange: true,
+      // 禁用流式加载
+      disableStream: true
     })
-
-    // 提取文本内容
-    const content = data.text
-
+    
+    const pdfDocument = await loadingTask.promise
+    const numPages = pdfDocument.numPages
+    
+    // 限制最大页数(防止超大PDF)
+    const maxPages = Math.min(numPages, 1000)
+    
+    // 提取所有页面的文本
+    const textPromises: Promise<string>[] = []
+    for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+      textPromises.push(extractPageText(pdfDocument, pageNum))
+    }
+    
+    const pageTexts = await Promise.all(textPromises)
+    const content = pageTexts.join('\n\n')
+    
     // 验证内容
     if (!content || content.trim().length === 0) {
       throw new ParseError('PARSE_ERROR', 'PDF文档为空或无法提取文本')
     }
-
+    
+    // 获取元数据
+    const metadata = await pdfDocument.getMetadata()
+    
     // 提取元信息
-    const metadata = {
-      totalPages: data.numpages,
-      title: data.info?.Title || undefined,
-      author: data.info?.Author || undefined,
-      creator: data.info?.Creator || undefined,
-      creationDate: data.info?.CreationDate || undefined,
+    const result = {
+      totalPages: numPages,
+      title: metadata.info?.Title || undefined,
+      author: metadata.info?.Author || undefined,
+      creator: metadata.info?.Creator || undefined,
+      creationDate: metadata.info?.CreationDate || undefined,
       wordCount: countWords(content)
     }
+
+    // 清理资源
+    await pdfDocument.cleanup()
+    await pdfDocument.destroy()
 
     return {
       content: content.trim(),
       contentLength: content.length,
-      metadata
+      metadata: result
     }
 
   } catch (error) {
@@ -277,6 +302,26 @@ async function parsePDF(buffer: Buffer): Promise<ParseResult> {
     }
     
     throw new ParseError('PARSE_ERROR', `PDF解析失败: ${error instanceof Error ? error.message : '未知错误'}`)
+  }
+}
+
+/**
+ * 从PDF页面提取文本
+ */
+async function extractPageText(pdfDocument: any, pageNum: number): Promise<string> {
+  try {
+    const page = await pdfDocument.getPage(pageNum)
+    const textContent = await page.getTextContent()
+    
+    // 提取所有文本项
+    const textItems = textContent.items
+      .map((item: any) => item.str)
+      .filter((str: string) => str.trim().length > 0)
+    
+    return textItems.join(' ')
+  } catch (error) {
+    logger.warn({ pageNum, error, action: 'warning' }, `Failed to extract text from page ${pageNum}`)
+    return ''
   }
 }
 

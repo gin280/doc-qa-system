@@ -1,30 +1,55 @@
 // Mock dependencies FIRST - before any imports
-// Mock pdf-parse library to avoid Jest worker thread issues
-jest.mock('pdf-parse', () => {
-  return jest.fn().mockImplementation((buffer: Buffer) => {
-    // Check if it's a corrupted PDF
-    const header = buffer.slice(0, 5).toString('ascii')
-    if (header !== '%PDF-') {
-      return Promise.reject(new Error('Invalid PDF structure'))
-    }
-    
-    // Check for very small files (likely corrupted)
-    if (buffer.length < 200) {
-      return Promise.reject(new Error('Invalid PDF structure'))
-    }
-    
-    // Mock successful parse result
-    return Promise.resolve({
-      numpages: 5,
-      text: 'This is sample PDF text content. 这是中文内容。',
-      info: {
-        Title: 'Test PDF',
-        Author: 'Test Author',
-        Creator: 'Test Creator',
-        CreationDate: '2025-01-01'
+// Mock pdfjs-dist library for serverless-compatible PDF parsing
+jest.mock('pdfjs-dist', () => {
+  return {
+    getDocument: jest.fn((options: any) => {
+      const data = options.data
+      
+      // Check if it's a corrupted PDF
+      const header = Buffer.from(data.slice(0, 5)).toString('ascii')
+      if (header !== '%PDF-') {
+        return {
+          promise: Promise.reject(new Error('Invalid PDF structure'))
+        }
+      }
+      
+      // Check for very small files (likely corrupted)
+      if (data.length < 200) {
+        return {
+          promise: Promise.reject(new Error('Invalid PDF structure'))
+        }
+      }
+      
+      // Mock successful PDF document
+      const mockPdfDocument = {
+        numPages: 5,
+        getMetadata: jest.fn().mockResolvedValue({
+          info: {
+            Title: 'Test PDF',
+            Author: 'Test Author',
+            Creator: 'Test Creator',
+            CreationDate: '2025-01-01'
+          }
+        }),
+        getPage: jest.fn((pageNum: number) => {
+          return Promise.resolve({
+            getTextContent: jest.fn().mockResolvedValue({
+              items: [
+                { str: 'This is sample PDF text content.' },
+                { str: '这是中文内容。' }
+              ]
+            })
+          })
+        }),
+        cleanup: jest.fn().mockResolvedValue(undefined),
+        destroy: jest.fn().mockResolvedValue(undefined)
+      }
+      
+      return {
+        promise: Promise.resolve(mockPdfDocument)
       }
     })
-  })
+  }
 })
 
 // Mock chardet library to avoid encoding detection issues in Jest
